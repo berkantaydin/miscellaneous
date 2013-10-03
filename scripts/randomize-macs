@@ -1,0 +1,4 @@
+#!/bin/bash
+
+macchanger -r wlan0
+macchanger -r eth0

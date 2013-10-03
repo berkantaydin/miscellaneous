@@ -1,0 +1,66 @@
+#!/bin/bash
+
+cd /home/calvinow/git/linux
+
+# Copy .config
+if [ ! -e .output/.config ]
+then
+	echo "Copying in .config..."
+	cp .build/config .output/.config
+fi
+
+# Clean up
+echo "Cleaning previous build output..."
+make clean O=.output
+
+# Grab the current version name
+make kernelrelease O=.output
+version=`make kernelrelease O=.output`
+grublabel="$version"
+
+# Apply patches in the "patches" directory
+# If you want this script to apply a patch, make a symlink to it in the "apply"
+# directory in the "patches" directory. Note that no sorting occurs here...
+if ! find "patches/apply" -maxdepth 0 -empty | read
+then
+	echo "Applying patches..."
+	find patches/apply/* -exec bash -c 'patch -N -r - -p1 < "$1"' {} {} \;
+	patcheslist=`find patches/apply/* -exec basename {} \; | tr '\n' ','`
+	grublabel="$version (+${patcheslist:0:-1})"
+fi
+
+# Actually build the kernel
+echo "Building Linux $grublabel..."
+time make -j16 O=.output
+
+echo "Saving .config"
+rm .build/config
+cp .output/.config .build/config
+
+if [ ! -e .output/arch/x86/boot/bzImage ]
+then
+	echo "Holy probably syntatical but possibly linker-related build error batman!"
+	exit
+fi
+
+echo -n "Build succeded! Press enter to continue..."
+read
+
+#Copy the bzImage to /boot
+sudo -p "Enter thy password: " cp .output/arch/x86/boot/bzImage /boot/linux-$version
+
+# Update grub.conf
+# This is kind of lame... we should try harder.
+echo -n "Updating grub.conf..."
+sudo bash -c 'cat > /boot/grub/grub.conf' << EOF
+default 0
+timeout 5
+
+title Linux $grublabel [`date +%D\ %R`]
+root (hd0,0)
+kernel /boot/linux-$version ignore_loglevel i915.i915_enable_rc6=4 i915.i915_enable_fbc=1 i915.i915_lvds_downclock=1 acpi_osi=
+
+`grep -A 2 -m 16 title /boot/grub/grub.conf`
+EOF
+sudo sed -i s/--//g /boot/grub/grub.conf
+echo " done!"

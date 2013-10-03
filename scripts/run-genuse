@@ -1,0 +1,13 @@
+#!/bin/bash
+
+for i in {1..31}
+do
+	echo -n "Genuse$i: "
+        ssh jcowens@genuse$i.lyle.smu.edu $1
+done
+
+for i in zeus hp1 csedev
+do
+	echo -n "$i: "
+        ssh jcowens@$i.lyle.smu.edu $1
+done
