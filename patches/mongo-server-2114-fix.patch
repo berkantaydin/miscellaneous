@@ -1,8 +1,8 @@
 diff --git a/src/mongo/util/net/listen.cpp b/src/mongo/util/net/listen.cpp
-index 6e3babf..94c38e7 100644
+index 8456818..d2e8887 100644
 --- a/src/mongo/util/net/listen.cpp
 +++ b/src/mongo/util/net/listen.cpp
-@@ -39,6 +39,7 @@
+@@ -41,6 +41,7 @@
  #include <arpa/inet.h>
  #include <errno.h>
  #include <netdb.h>
@@ -10,7 +10,7 @@ index 6e3babf..94c38e7 100644
  #ifdef __openbsd__
  # include <sys/uio.h>
  #endif
-@@ -51,6 +52,23 @@
+@@ -53,6 +54,23 @@
  
  #endif
  
@@ -34,16 +34,16 @@ index 6e3babf..94c38e7 100644
  namespace mongo {
  
  
-@@ -97,7 +115,7 @@ namespace mongo {
-     }
+@@ -100,7 +118,7 @@ namespace mongo {
      
      Listener::Listener(const string& name, const string &ip, int port, bool logConnect ) 
--        : _port(port), _name(name), _ip(ip), _logConnect(logConnect), _elapsedTime(0) { 
-+        : _port(port), _name(name), _ip(ip), _logConnect(logConnect) {
+         : _port(port), _name(name), _ip(ip), _setupSocketsSuccessful(false),
+-          _logConnect(logConnect), _elapsedTime(0) {
++          _logConnect(logConnect) {
  #ifdef MONGO_SSL
          _ssl = getSSLManager();
  #endif
-@@ -203,7 +221,7 @@ namespace mongo {
+@@ -210,7 +228,7 @@ namespace mongo {
          _logListen(_port, false);
  #endif
  
@@ -52,7 +52,7 @@ index 6e3babf..94c38e7 100644
          while ( ! inShutdown() ) {
              fd_set fds[1];
              FD_ZERO(fds);
-@@ -212,16 +230,9 @@ namespace mongo {
+@@ -219,16 +237,9 @@ namespace mongo {
                  FD_SET(*it, fds);
              }
  
@@ -70,7 +70,7 @@ index 6e3babf..94c38e7 100644
                  continue;
              }
  
-@@ -238,12 +249,6 @@ namespace mongo {
+@@ -245,12 +256,6 @@ namespace mongo {
                  return;
              }
  
@@ -80,10 +80,10 @@ index 6e3babf..94c38e7 100644
 -            _elapsedTime += ret; // assume 1ms to grab connection. very rough
 -#endif
 -
-             for (vector<SOCKET>::iterator it=socks.begin(), end=socks.end(); it != end; ++it) {
+             for (vector<SOCKET>::iterator it=_socks.begin(), end=_socks.end(); it != end; ++it) {
                  if (! (FD_ISSET(*it, fds)))
                      continue;
-@@ -555,6 +560,55 @@ namespace mongo {
+@@ -562,6 +567,55 @@ namespace mongo {
          globalTicketHolder.resize( want );
      }
  
@@ -140,11 +140,11 @@ index 6e3babf..94c38e7 100644
      TicketHolder Listener::globalTicketHolder(DEFAULT_MAX_CONN);
      AtomicInt64 Listener::globalConnectionNumber;
 diff --git a/src/mongo/util/net/listen.h b/src/mongo/util/net/listen.h
-index 843cfa7..1b84f7d 100644
+index dbb7014..fa08911 100644
 --- a/src/mongo/util/net/listen.h
 +++ b/src/mongo/util/net/listen.h
-@@ -21,6 +21,11 @@
- #include "mongo/util/concurrency/ticketholder.h"
+@@ -26,6 +26,11 @@
+ #include "mongo/util/log.h"
  #include "mongo/util/net/sock.h"
  
 +// For Mach monotonic counters (need for return type of helper function)
@@ -154,20 +154,28 @@ index 843cfa7..1b84f7d 100644
 +
  namespace mongo {
  
-     const int DEFAULT_MAX_CONN = 20000;
-@@ -44,9 +49,9 @@ namespace mongo {
+     const int DEFAULT_MAX_CONN = 1000000;
+@@ -48,17 +53,9 @@ namespace mongo {
          const int _port;
  
          /**
 -         * @return a rough estimate of elapsed time since the server started
+-           todo: 
+-           1) consider adding some sort of relaxedLoad semantic to the reading here of 
+-              _elapsedTime
+-           2) curTimeMillis() implementations have gotten faster. consider eliminating
+-              this code?  would have to measure it first.  if eliminated be careful if 
+-              syscall used isn't skewable.  Note also if #2 is done, listen() doesn't 
+-              then have to keep waking up and maybe that helps on a developer's laptop 
+-              battery usage...
 +         * @return elapsed time since the server started, in milliseconds
           */
 -        long long getMyElapsedTimeMillis() const { return _elapsedTime; }
 +        long long getMyElapsedTimeMillis() const { return getMillis() - startMillis; }
  
-         void setAsTimeTracker() {
-             _timeTracker = this;
-@@ -64,11 +69,16 @@ namespace mongo {
+         /**
+          * Allocate sockets for the listener and set _setupSocketsSuccessful to true
+@@ -82,6 +79,11 @@ namespace mongo {
              return 0;
          }
  
@@ -177,15 +185,18 @@ index 843cfa7..1b84f7d 100644
 +        void startElapsedTimeCounter() { startMillis = getMillis(); }
 +
      private:
-         string _name;
-         string _ip;
+         std::vector<SockAddr> _mine;
+         std::vector<SOCKET> _socks;
+@@ -89,7 +91,7 @@ namespace mongo {
+         std::string _ip;
+         bool _setupSocketsSuccessful;
          bool _logConnect;
 -        long long _elapsedTime;
 +        long long startMillis;
          
  #ifdef MONGO_SSL
-         SSLManager* _ssl;
-@@ -85,6 +95,18 @@ namespace mongo {
+         SSLManagerInterface* _ssl;
+@@ -101,6 +103,18 @@ namespace mongo {
          
          virtual bool useUnixSockets() const { return false; }
  
@@ -204,3 +215,6 @@ index 843cfa7..1b84f7d 100644
      public:
          /** the "next" connection number.  every connection to this process has a unique number */
          static AtomicInt64 globalConnectionNumber;
+-- 
+1.8.5.3
+
