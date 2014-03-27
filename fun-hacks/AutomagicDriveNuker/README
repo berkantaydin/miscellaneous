@@ -1,0 +1,4 @@
+This sort of works. I need to figure out how to best package it all together.
+
+Basically, compile a kernel with a built-in initrd with 'init.c' staticly
+linked as init. Boot it off a USB stick. Profit.

@@ -1,0 +1,15 @@
+Brute force the XKCD hash target.
+
+VERY hastily thrown together from: git://das-labor.org/users/bg/avr-crypto-lib
+
+Pass the number of threads as the only argument. It connects to XKCD and submits
+the text whenever it finds a new low hash.
+
+Does about 1.4M hashes/sec on a 12-core Xeon server (w/ 24 HT's), and about 85k/sec
+on my little Core2 laptop.
+
+NOTE: You can't POST non-alphanumeric hashes using your browser, because the xkcd
+site does not treat them as urlencoded. You have to actually send the raw data.
+The POST asprintf() works, but you can also use curl from the command line:
+
+curl --data 'hashable=|I&zpT<FJ3H=ZBaZ:\ a|-ka6HEQ|w!' http://almamater.xkcd.com/?edu=smu.edu
