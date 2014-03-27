@@ -10,16 +10,19 @@
 % this work for any purpose, without any conditions, unless such conditions are
 % required by law.
 
-\documentclass[12pt]{article}
+\documentclass[11pt]{article}
 \topmargin=-0.5in
-\oddsidemargin=-0.5in
-\evensidemargin=-0.5in
-\textwidth=7.25in
+\oddsidemargin=-0.75in
+\evensidemargin=-0.75in
+\textwidth=7.75in
 \marginparwidth=0.5in
 \headheight=0pt
 \headsep=0pt
-\textheight=10.0in
+\textheight=10.5in
 \pagenumbering{gobble}
+
+\usepackage{multicol}
+\usepackage{enumitem}
 
 \begin{document}
 
@@ -34,7 +37,7 @@
 \centerline{\underline{\bf Education}}
 \bigskip
 \centerline{Southern Methodist University, Dallas, TX \hfill Graduating May 2014}
-\centerline{\hfill $\bullet$ B.M. Clarinet Performance \hfill $\bullet$ B.A. Computer Science \hfill}
+\centerline{\hfill $\bullet$ B.A. Computer Science \hfill $\bullet$ B.M. Clarinet Performance \hfill}
 
 \noindent
 \hrulefill
@@ -73,6 +76,50 @@ hour. The existing solution took 2-3 hours per computer.
 \noindent
 \hrulefill
 
-\centerline{\underline{\bf Next heading}}
+\centerline{\underline{\bf Skills and Proficiencies}}
+
+\begin{multicols}{2}
+
+\centerline{\bf Programming Languages}
+\bigskip
+\noindent Highly proficient in:\\
+\centerline{\hfill $\bullet$ C \hfill $\bullet$ Python \hfill $\bullet$ Shell Scripting \hfill}
+\noindent Familiar with:\\
+\centerline{\hfill $\bullet$ C++ \hfill $\bullet$ Java \hfill $\bullet$ JavaScript \hfill $\bullet$ Perl \hfill $\bullet$ PHP \hfill}
+\noindent Assembly languages:\\
+\centerline{\hfill $\bullet$ ARM \hfill $\bullet$ MIPS \hfill $\bullet$ x86 \hfill}
+
+\bigskip
+
+\centerline{\bf Skills}
+\begin{itemize}[leftmargin=*]
+\itemsep 0em
+	\item Extremely well-versed in the setup and administration of Linux systems, particularly Gentoo and Debian distributions.
+	\item Intimately familiar with common networking protocols and configurations.
+	\item Extensive cryptography knowledge, theoretical and practical.
+	\item In-depth knowledge of Linux Kernel functionality, programming, and debugging.
+\end{itemize}
+
+\columnbreak
+
+\centerline{\bf Open Source Work}
+\begin{itemize}[leftmargin=*]
+\itemsep 0em
+	\item Linux Kernel - 3 commits upstream:
+	\begin{itemize}
+	\itemsep 0em
+		\item b1ea3e6e: Small bugfix in the Nouveau GPU driver
+		\item 1539d4f8: Add quirk to fix 192KHz recording on a certain USB sound card
+		\item dfa1ad29: Aesthetic addition to kdmesg output from IEEE 802.11 driver.
+	\end{itemize}
+	\item Personal projects:
+	\begin{itemize}
+	\itemsep 0em
+		\item AsmHTTPd: A minimalist HTTP webserver, written entirely in x86-64 assembler.
+		\item DataBlaster: A utility for sending files lossily over UDP at a constant bitrate.
+	\end{itemize}
+\end{itemize}
+
+\end{multicols}
 
 \end{document}
