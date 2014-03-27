@@ -1,8 +1,8 @@
-This is a collection of random things that I want to keep, but don't care enough
-about to develop into standalone projects.
+This repo is for smaller projects that don't merit their own git repo.
 
 Folders:
 	* /patches:		Patches for other projects that nobody wants
 	* /scripts:		Random little scripts for various things. Some
 				of these suck, please don't judge me.
-	* /fun-hacks:		Little things I've written that may be of interest.
+	* /fun-hacks:		Things I've written that may be of interest.
+	* /resume:		My resume
