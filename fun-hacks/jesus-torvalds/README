@@ -1,0 +1,20 @@
+@JesusTorvalds: Tweets randomly generated from a corpus consisting of all the
+		direct quotes from Jesus in the bible, and a dump of all of
+		Linus' E-Mails to linux-kernel over the past year or so.
+
+This is the script that runs on a server of mine to generate tweets for the
+twitter handle @JesusTorvalds. It's based on the traditional Mark V Shaney
+text generation algo, but in order to make sure we get funny combinations of
+Jesus and Linus, it generates 64 potential tweets and ranks them based on
+how many words from each corpus are included, preferring those closest to half
+and half. It limits to 140 characters for tweets: the results are generally
+funnier if you let them be longer, but obviously on Twitter I didn't have
+much of a choice.
+
+I actually got the idea from Linus himself:
+	http://yarchive.net/comp/linux/bayes_spam_filters.html
+
+The results are generally pretty funny. About half of them don't make a lot of
+gramattical sense, it would be nice to improve that aspect. I think that's
+mostly just the way it has to be because of the old/new English justaposition,
+but if you see a way to improve it, send me patches!
