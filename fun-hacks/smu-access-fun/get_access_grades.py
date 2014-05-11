@@ -107,7 +107,7 @@ def get_access_gradepage_data(uid,password):
 
 	sicsid = re.search("[a-zA-Z0-9\/\+^\s]{43}\=", g);
 	if sicsid == None:
-		print("Access.SMU is currently down for maintenance");
+		print("</pre><p style=\"max-width:500px\"><b>Access.SMU is currently down for maintenance</b></p><p style=\"max-width:500px\"><i>It's also possible Access.SMU changed and the script is broken - usually I'll notice it soon. If not, let me know and I'll fix it. If I feel like it. Maybe.</i></p><pre>", end='');
 		sys.exit(-1);
 
 	access_icsid = sicsid.group(0);
@@ -178,22 +178,25 @@ def get_access_gradepage_data(uid,password):
 
 	do_http_req(con,cookies,"https://access.smu.edu", "/psp/ps/EMPLOYEE/HRMS/?cmd=login", "POST", login_post);
 	do_http_req(con,cookies,"https://access.smu.edu","/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL?Page=SSR_SSENRL_GRADE&Action=A&TargetFrameName=None","GET",None);
-	do_http_req(con,cookies,"https://access.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL", "POST", post0);
+	p1 = do_http_req(con,cookies,"https://access.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL", "POST", post0);
 
-	p1 = do_http_req(con,cookies,"https://access.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSS_STUDENT_CENTER.GBL", "POST", post1);
+	# FIXME: After finals, they change the default to the current semester's grades,
+	# instead of the semester choice dialog. It also changes sometimes during the
+	# semester, no idea why...
+	#p1 = do_http_req(con,cookies,"https://access.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSS_STUDENT_CENTER.GBL", "POST", post1);
 	
 	p1s = BeautifulSoup(p1, "html5lib");
 	sems = p1s.find_all(id=re.compile('^TERM_CAR\$[0-9]{1,2}'));
 	
 	i = 0;
 	while i < len(sems):
-		if sems[i].get_text() == "Fall 2013":
+		if sems[i].get_text() == "Spring 2014":
 			semester = str(i);
 			break;
 		i += 1;
 
 	if i == len(sems):
-		print("Invalid data returned! Are you sure you entered your SMU ID/password correctly?");
+		print("</pre><p style=\"max-width:500px\"><b>Invalid data returned!!!</b> Are you sure you entered your SMU ID/password correctly when you created your link? Have you changed your password since then?</p><p style=\"max-width:500px\"><i>It's also possible Access.SMU changed and the script is broken - usually I'll notice it soon. If not, let me know and I'll fix it. If I feel like it. Maybe.</i></p><pre>", end='');
 		sys.exit(-1);
 
 	post2 = urllib.parse.urlencode({"ICAJAX": "1",
