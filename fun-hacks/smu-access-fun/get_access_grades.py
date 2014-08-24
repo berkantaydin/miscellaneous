@@ -100,10 +100,10 @@ def get_gpa_attrs(soupdoc):
 
 def get_access_gradepage_data(uid,password):
 	cookies = http.cookiejar.CookieJar();
-	con = http.client.HTTPSConnection("access.smu.edu");
+	con = http.client.HTTPSConnection("my.smu.edu");
 
-	do_http_req(con,cookies,"https://access.smu.edu","/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.CLASS_SEARCH.GBL","GET",None);
-	g = do_http_req(con,cookies,"https://access.smu.edu","/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.CLASS_SEARCH.GBL?&","GET",None);
+	do_http_req(con,cookies,"https://my.smu.edu","/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.CLASS_SEARCH.GBL","GET",None);
+	g = do_http_req(con,cookies,"https://my.smu.edu","/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.CLASS_SEARCH.GBL?&","GET",None);
 
 	sicsid = re.search("[a-zA-Z0-9\/\+^\s]{43}\=", g);
 	if sicsid == None:
@@ -176,14 +176,14 @@ def get_access_gradepage_data(uid,password):
 	post1 = post1.encode('utf-8');
 
 
-	do_http_req(con,cookies,"https://access.smu.edu", "/psp/ps/EMPLOYEE/HRMS/?cmd=login", "POST", login_post);
-	do_http_req(con,cookies,"https://access.smu.edu","/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL?Page=SSR_SSENRL_GRADE&Action=A&TargetFrameName=None","GET",None);
-	p1 = do_http_req(con,cookies,"https://access.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL", "POST", post0);
+	do_http_req(con,cookies,"https://my.smu.edu", "/psp/ps/EMPLOYEE/HRMS/?cmd=login", "POST", login_post);
+	do_http_req(con,cookies,"https://my.smu.edu","/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL?Page=SSR_SSENRL_GRADE&Action=A&TargetFrameName=None","GET",None);
+	p1 = do_http_req(con,cookies,"https://my.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL", "POST", post0);
 
 	# FIXME: After finals, they change the default to the current semester's grades,
 	# instead of the semester choice dialog. It also changes sometimes during the
 	# semester, no idea why...
-	#p1 = do_http_req(con,cookies,"https://access.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSS_STUDENT_CENTER.GBL", "POST", post1);
+	#p1 = do_http_req(con,cookies,"https://my.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSS_STUDENT_CENTER.GBL", "POST", post1);
 	
 	p1s = BeautifulSoup(p1, "html5lib");
 	sems = p1s.find_all(id=re.compile('^TERM_CAR\$[0-9]{1,2}'));
@@ -226,7 +226,7 @@ def get_access_gradepage_data(uid,password):
 	"DERIVED_SSTSNAV_SSTS_MAIN_GOTO$72$": "9999"});
 	post2 = post2.encode('utf-8');
 
-	p2 = do_http_req(con,cookies,"https://access.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL", "POST", post2);
+	p2 = do_http_req(con,cookies,"https://my.smu.edu", "/psc/ps/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_GRADE.GBL", "POST", post2);
 	return p2;
 
 def print_pretty_long_grades(clist,with_stats = 0,stats = {}):
