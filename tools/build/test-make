@@ -1,0 +1,14 @@
+#!/bin/bash
+
+LINUX_SRC_DIR="$HOME/git/linux"
+BUILD_SCR_DIR="$HOME/git/miscellaneous/tools/build"
+TESTING_DIR="$HOME/git/miscellaneous/tools/testing"
+
+HOSTNAME="test" $BUILD_SCR_DIR/local-make -b
+
+cd $LINUX_SRC_DIR
+curcommit=`git rev-parse HEAD`
+curcommit="${curcommit:0:8}"
+curbranch=`git rev-parse --abbrev-ref HEAD`
+
+cp arch/x86/boot/bzImage $TESTING_DIR/kernels/vmlinuz-$curbranch-$curcommit-kvm

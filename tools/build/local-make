@@ -1,0 +1,87 @@
+#!/bin/bash
+
+## Pass '-c' to clean before building
+## Pass '-o <dir>' to write build output to <dir>
+## Pass '-m' to run the ncurses menu configeration
+
+TIMECMD="/usr/bin/time -v"
+SHA1CMD="sha1sum"
+LINUX_SRC_DIR="$HOME/git/linux"
+BUILD_SCR_DIR="$HOME/git/miscellaneous/tools/build"
+
+MAKEOPTS="-j16"
+OUTPUTREDIR="."
+
+maybe_backup_config() {
+	csum_orig=`$SHA1CMD $BUILD_SCR_DIR/config-$HOSTNAME`
+	csum_new=`$SHA1CMD .config`
+
+	if [ ! "${csum_orig:0:40}" == "${csum_new:0:40}" ]; then
+		echo "Config has changed, saving current..."
+		cat $BUILD_SCR_DIR/config-$HOSTNAME | xz > $BUILD_SCR_DIR/config-backups/`date +%s`-config-$HOSTNAME.xz
+		rm -f $BUILD_SCR_DIR/config-$HOSTNAME
+		cp $OUTPUTREDIR/.config $BUILD_SCR_DIR/config-$HOSTNAME
+	fi
+}
+
+while getopts bcmo: i; do
+	case $i in
+		b) BUILDONLY=1 ;;
+		m) DOCONFIG=1 ;;
+		c) DOCLEAN=1 ;;
+		o) OUTPUTREDIR="$OPTARG"; MAKEOPTS="${MAKEOPTS} O=$OPTARG" ;;
+	esac
+done
+
+cd $LINUX_SRC_DIR
+
+if [ ! -e $BUILD_SCR_DIR/config-$HOSTNAME ]; then
+	echo "Can't find .config for $HOSTNAME"
+	exit
+fi
+
+if [ ! -z "$DOCLEAN" ]; then
+	make clean $MAKEOPTS
+fi
+
+if [ ! "$OUTPUTREDIR" == "." ]; then
+	make mrproper
+fi
+
+echo "Copying in .config for host \"$HOSTNAME\"..."
+cp -f $BUILD_SCR_DIR/config-$HOSTNAME $OUTPUTREDIR/.config
+
+if [ ! -z "$DOCONFIG" ]; then
+	make menuconfig $MAKEOPTS
+	maybe_backup_config
+	exit
+fi
+
+# Grab the current version name
+make kernelrelease $MAKEOPTS
+version=`make $MAKEOPTS kernelrelease | grep -R '[0-9]\..*' -`
+
+# Actually build the kernel
+echo "Building Linux $version..."
+$TIMECMD make $MAKEOPTS
+
+maybe_backup_config
+
+if [ ! -e $OUTPUTREDIR/arch/x86/boot/bzImage ]; then
+	echo "Holy probably syntatical but possibly linker-related build error batman!"
+	exit
+fi
+
+if [ ! -z "$BUILDONLY" ]; then
+	exit
+fi
+
+echo -n "Build succeded! Press enter to continue..."
+read
+
+# Copy the bzImage to /boot
+sudo -p "Enter thy password: " cp "$OUTPUTREDIR/arch/x86/boot/bzImage" "/boot/vmlinuz-$version"
+
+# Update Grub!
+echo "Regenerating Grub configuration... "
+sudo grub2-mkconfig -o /boot/grub/grub.cfg
