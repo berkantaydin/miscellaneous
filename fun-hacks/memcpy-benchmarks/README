@@ -1,0 +1,88 @@
+This is a couple programs to test the speed of various x86 instructions for
+copying or zeroing memory across different CPU models. The page zeroing test
+is a bit stupid, it really just measures the speed of the L1 cache in the CPU,
+and to some extent how much the CPU can optimize sequential small instructions.
+
+Not very scientific, just messing around. Some observations:
+	* The AMD processor is much less aggressive about optimizing smaller
+	  sized operations. It also appears that using the SSE/AVX registers is
+	  much more of a win on these CPUs.
+	* Despite the very different clock speeds, the two Intel CPUs had nearly
+	  identical times for copying 10GB back and forth. Turns out the RAM in
+	  these machines have nearly identical specs (clock speed, etc), so what
+	  we're seeing there is the CPU completely saturating the memory
+	  controller/bus.
+================================================================================
+
+Bach:		AMD Phenom(tm) II X4 965 Processor @ 3.40GHz
+		gcc (Debian 4.7.2-5) 4.7.2
+Mozart:		Intel(R) Core(TM) i7-3630QM CPU @ 2.40GHz
+		gcc (Gentoo 4.8.3 p1.1, pie-0.5.9) 4.8.3
+Beethoven:	Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz
+		gcc (Gentoo 4.8.3 p1.1, pie-0.5.9) 4.8.3
+
+calvinow@Bach:~/git/miscellaneous/fun-hacks/memcpy-benchmarks$ ./test-zero 
+Zeroing 10000000 pages, 8 algos...
+8-bit at-a-time:        2420 nanoseconds
+16-bit at-a-time:       0561 nanoseconds
+32-bit at-a-time:       0257 nanoseconds
+64-bit at-a-time:       0123 nanoseconds
+128-bit at-a-time:      0122 nanoseconds
+float128 at-a-time:     0104 nanoseconds
+x86 string insns:       0095 nanoseconds
+x86 nocache64 write:    0743 nanoseconds
+calvinow@Bach:~/git/miscellaneous/fun-hacks/memcpy-benchmarks$ ./test-memcpy 
+Performing 9 tests!
+8-bit at-a-time:        9299782345 nanoseconds
+16-bit at-a-time:       6313198095 nanoseconds
+32-bit at-a-time:       4747488047 nanoseconds
+64-bit at-a-time:       4219804568 nanoseconds
+128-bit at-a-time:      3912609417 nanoseconds
+float128 at-a-time:     3912873937 nanoseconds
+x86 string insns:       5023073432 nanoseconds
+x86 nocache64 write:    3087693456 nanoseconds
+Glibc builtin memcpy:   2154522543 nanoseconds
+
+calvinow@Mozart ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-zero 
+Zeroing 10000000 pages, 8 algos...
+8-bit at-a-time:        0092 nanoseconds
+16-bit at-a-time:       0088 nanoseconds
+32-bit at-a-time:       0087 nanoseconds
+64-bit at-a-time:       0087 nanoseconds
+128-bit at-a-time:      0086 nanoseconds
+float128 at-a-time:     0087 nanoseconds
+x86 string insns:       0085 nanoseconds
+x86 nocache64 write:    0298 nanoseconds
+calvinow@Mozart ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-memcpy 
+Performing 9 tests!
+8-bit at-a-time:        6849124344 nanoseconds
+16-bit at-a-time:       3489596552 nanoseconds
+32-bit at-a-time:       2269032305 nanoseconds
+64-bit at-a-time:       1895534989 nanoseconds
+128-bit at-a-time:      1897680049 nanoseconds
+float128 at-a-time:     1899598018 nanoseconds
+x86 string insns:       1468721836 nanoseconds
+x86 nocache64 write:    1579600237 nanoseconds
+Glibc builtin memcpy:   1902726124 nanoseconds
+
+calvinow@Beethoven ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-zero 
+Zeroing 10000000 pages, 8 algos...
+8-bit at-a-time:        0070 nanoseconds
+16-bit at-a-time:       0068 nanoseconds
+32-bit at-a-time:       0070 nanoseconds
+64-bit at-a-time:       0070 nanoseconds
+128-bit at-a-time:      0068 nanoseconds
+float128 at-a-time:     0069 nanoseconds
+x86 string insns:       0038 nanoseconds
+x86 nocache64 write:    0215 nanoseconds
+calvinow@Beethoven ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-memcpy 
+Performing 9 tests!
+8-bit at-a-time:        3814964748 nanoseconds
+16-bit at-a-time:       2341559880 nanoseconds
+32-bit at-a-time:       2295235158 nanoseconds
+64-bit at-a-time:       2273557342 nanoseconds
+128-bit at-a-time:      2252497712 nanoseconds
+float128 at-a-time:     2241352170 nanoseconds
+x86 string insns:       1439448770 nanoseconds
+x86 nocache64 write:    1437539715 nanoseconds
+Glibc builtin memcpy:   2249946441 nanoseconds
