@@ -1,2 +1,3 @@
 test-memcpy
 test-zero
+perf.data*

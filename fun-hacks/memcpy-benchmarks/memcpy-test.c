@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -5,6 +6,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <sched.h>
 
 #define TEST_BUFFER_ORDER 30UL
 #define TEST_BUFFER_SIZE ((1UL << TEST_BUFFER_ORDER))
@@ -103,6 +105,29 @@ static void *alloc_buffer(size_t size)
 	return ret;
 }
 
+#define NR_CPUS 8
+static int become_realtime_sortof(void)
+{
+	int ret;
+	cpu_set_t *cpumask;
+	struct sched_param sp = {
+		.sched_priority = sched_get_priority_max(SCHED_FIFO),
+	};
+
+	cpumask = CPU_ALLOC(NR_CPUS);
+	if (!cpumask)
+		return -1;
+
+	CPU_ZERO(cpumask);
+	ret = sched_getcpu();
+	CPU_SET(ret, cpumask);
+	ret = sched_setaffinity(0, CPU_ALLOC_SIZE(NR_CPUS), cpumask);
+	if (ret == -1)
+		return -1;
+
+	return sched_setscheduler(0, SCHED_FIFO, &sp);
+}
+
 int main(void)
 {
 	int i, j, nr_tests;
@@ -113,6 +138,9 @@ int main(void)
 
 	src_buf = alloc_buffer(TEST_BUFFER_SIZE);
 	dst_buf = alloc_buffer(TEST_BUFFER_SIZE);
+
+	if (become_realtime_sortof())
+		return printf("Couldn't become realtime sortof: %m\n");
 
 	nr_tests = sizeof(funcs) / sizeof(funcs[0]);
 	printf("Performing %d tests!\n", nr_tests);
