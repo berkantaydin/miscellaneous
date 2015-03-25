@@ -81,6 +81,7 @@ read
 
 # Copy the bzImage to /boot
 sudo -p "Enter thy password: " cp "$OUTPUTREDIR/arch/x86/boot/bzImage" "/boot/vmlinuz-$version"
+sudo cp "$OUTPUTREDIR/vmlinux" "/boot/vmlinux-$version"
 
 # Update Grub!
 echo "Regenerating Grub configuration... "
