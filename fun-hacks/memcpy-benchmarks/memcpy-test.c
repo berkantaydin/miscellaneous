@@ -8,36 +8,48 @@
 #include <sys/mman.h>
 #include <sched.h>
 
-#define TEST_BUFFER_ORDER 30UL
-#define TEST_BUFFER_SIZE ((1UL << TEST_BUFFER_ORDER))
+#define TEST_BUFFER_ORDER 30
 #define NR_TEST_COPIES 10
+#define TEST_BUFFER_SIZE ((1UL << TEST_BUFFER_ORDER))
 
-#define INSTANTIATE_MEMCPY_FUNC(type) \
-static void *memcpy_##type(void *dst, const void *src, size_t n) \
-{ \
-	volatile const type *s = src; \
-	type *d = dst; \
-	n >>= __builtin_ffs(sizeof(type) / sizeof(char)) - 1; \
-	while (--n) \
-		d[n] = s[n]; \
-	return NULL; \
-}
+#define TESTED_BYTES ((TEST_BUFFER_SIZE * NR_TEST_COPIES))
 
-INSTANTIATE_MEMCPY_FUNC(char)
-INSTANTIATE_MEMCPY_FUNC(short)
-INSTANTIATE_MEMCPY_FUNC(int)
-INSTANTIATE_MEMCPY_FUNC(long)
-INSTANTIATE_MEMCPY_FUNC(__int128)
-INSTANTIATE_MEMCPY_FUNC(__float128)
+#define CACHE_LINE_BYTES 64
+#define NR_CPUS 8
 
-void *memcpy_fast(void *dst, const void *src, size_t n)
+struct cache_line {
+	char b[CACHE_LINE_BYTES];
+} __attribute__((aligned(CACHE_LINE_BYTES)));
+
+static inline void flush_cache_line(const void *addr)
 {
-	asm volatile (	"movq %0,%%rsi; movq %1,%%rdi; movq %2,%%rcx; rep movsb;" ::
-			"r" (dst), "r" (src), "r" (n) :"%rsi","%rdi","%rcx");
-	return NULL;
+	asm volatile ("clflush (%0);" :: "r" (addr) : "memory");
 }
 
-void *memcpy_nocache(void *dst, const void *src, size_t n)
+static void dump_caches(const void *a, const void *b, size_t n)
+{
+	size_t i;
+	const struct cache_line *csrc = a;
+	const struct cache_line *cdst = b;
+
+	n /= sizeof(struct cache_line);
+	for (i = 0; i < n; i++) {
+		flush_cache_line(&cdst[i]);
+		flush_cache_line(&csrc[i]);
+	}
+	asm volatile ("mfence;" ::: "memory");
+}
+
+static void *memcpy_erms(void *dst, const void *src, size_t n)
+{
+	asm volatile ("rep movsb;" :: "S" (dst), "D" (src), "c" (n) : "memory");
+	return dst;
+}
+
+/*
+ * XXX: This one assumes 8-byte alignment
+ */
+static void *memcpy_nocache(void *dst, const void *src, size_t n)
 {
 	asm volatile (	"shr $3,%2;"
 			"1:\n"
@@ -48,7 +60,7 @@ void *memcpy_nocache(void *dst, const void *src, size_t n)
 			"sfence;" ::
 			"r" (dst), "r" (src), "r" (n) : "%rdx");
 
-	return NULL;
+	return dst;
 }
 
 struct memcpy_func {
@@ -56,56 +68,25 @@ struct memcpy_func {
 	char *name;
 };
 
+#define MEMCPY_FUNC(fn, nm) {.func = fn, .name = nm,}
 static struct memcpy_func funcs[] = {
-	{
-		.func = memcpy_char,
-		.name = "8-bit at-a-time",
-	},
-	{
-		.func = memcpy_short,
-		.name = "16-bit at-a-time",
-	},
-	{
-		.func = memcpy_int,
-		.name = "32-bit at-a-time",
-	},
-	{
-		.func = memcpy_long,
-		.name = "64-bit at-a-time",
-	},
-	{
-		.func = memcpy___int128,
-		.name = "128-bit at-a-time",
-	},
-	{
-		.func = memcpy___float128,
-		.name = "float128 at-a-time",
-	},
-	{
-		.func = memcpy_fast,
-		.name = "x86 string insns",
-	},
-	{
-		.func = memcpy_nocache,
-		.name = "x86 nocache64 write",
-	},
-	{
-		.func = memcpy,
-		.name = "Glibc builtin memcpy",
-	},
+	MEMCPY_FUNC(memcpy_nocache, "movnti"),
+	MEMCPY_FUNC(memcpy_erms, "erms"),
+	MEMCPY_FUNC(memcpy, "Glibc"),
 };
 
 static void *alloc_buffer(size_t size)
 {
 	void *ret = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE|MAP_POPULATE, 0, 0);
 
-	if (ret == MAP_FAILED)
+	if (ret == MAP_FAILED) {
+		printf("Couldn't allocate buffers!\n");
 		abort();
+	}
 
 	return ret;
 }
 
-#define NR_CPUS 8
 static int become_realtime_sortof(void)
 {
 	int ret;
@@ -140,14 +121,19 @@ int main(void)
 	dst_buf = alloc_buffer(TEST_BUFFER_SIZE);
 
 	if (become_realtime_sortof())
-		return printf("Couldn't become realtime sortof: %m\n");
+		printf("WARNING: Couldn't become realtime sortof: %m\n");
 
 	nr_tests = sizeof(funcs) / sizeof(funcs[0]);
-	printf("Performing %d tests!\n", nr_tests);
+	printf("Performing %d tests, %.3fGiB!\n", nr_tests,
+		TESTED_BYTES / (double) (1UL << 30));
 	for (i = 0; i < nr_tests; i++) {
 		cur = &funcs[i];
 
-		printf("%s:\t", cur->name);
+		/*
+		 * Dump all testing area out of the cache.
+		 */
+		dump_caches(src_buf, dst_buf, TEST_BUFFER_SIZE);
+
 		clock_gettime(CLOCK_MONOTONIC_RAW, &then);
 		for (j = 0; j < NR_TEST_COPIES / 2; j++) {
 			cur->func(src_buf, dst_buf, TEST_BUFFER_SIZE);
@@ -157,7 +143,12 @@ int main(void)
 
 		nsec_elapsed = (now.tv_sec - then.tv_sec) * 1000000000L;
 		nsec_elapsed += (now.tv_nsec - then.tv_nsec);
-		printf("%.09lu nanoseconds\n", nsec_elapsed);
+		printf("%s:\t%.9f seconds, %luus/MiB, %luns/page, %.3fns/cacheline\n",
+			cur->name,
+			nsec_elapsed / (double) 1000000000L,
+			(nsec_elapsed / (TESTED_BYTES >> 20)) / 1000L,
+			(nsec_elapsed / (TESTED_BYTES >> 12)),
+			(nsec_elapsed / (double) (TESTED_BYTES / CACHE_LINE_BYTES)));
 	}
 
 	return 0;
