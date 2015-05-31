@@ -63,11 +63,11 @@ version=`make $MAKEOPTS kernelrelease | grep -R '[0-9]\..*' -`
 
 # Actually build the kernel
 echo "Building Linux $version..."
-$TIMECMD make $MAKEOPTS
+$TIMECMD make $MAKEOPTS tar-pkg
 
 maybe_backup_config
 
-if [ ! -e $OUTPUTREDIR/arch/x86/boot/bzImage ]; then
+if [ ! -e $OUTPUTREDIR/linux-${version}-x86.tar ]; then
 	echo "Holy probably syntatical but possibly linker-related build error batman!"
 	exit
 fi
@@ -79,10 +79,20 @@ fi
 echo -n "Build succeded! Press enter to continue..."
 read
 
-# Copy the bzImage to /boot
-sudo -p "Enter thy password: " cp "$OUTPUTREDIR/arch/x86/boot/bzImage" "/boot/vmlinuz-$version"
-sudo cp "$OUTPUTREDIR/vmlinux" "/boot/vmlinux-$version"
+if [ -e /etc/portage ]; then
+	# Copy the bzImage to /boot
+	sudo -p "Enter thy password: " cp "$OUTPUTREDIR/arch/x86/boot/bzImage" "/boot/vmlinuz-$version"
+	sudo cp "$OUTPUTREDIR/vmlinux" "/boot/vmlinux-$version"
 
-# Update Grub!
-echo "Regenerating Grub configuration... "
-sudo grub2-mkconfig -o /boot/grub/grub.cfg
+	# Update Grub!
+	echo "Regenerating Grub configuration... "
+	sudo grub2-mkconfig -o /boot/grub/grub.cfg
+else
+	sudo tar xfs $OUTPUTREDIR/linux-${version}-x86.tar -C /
+	sudo mkdir /lib/modules/$version
+	sudo mv /boot/vmlinux-$version /lib/modules/$version/vmliunx-$version
+	sudo update-initramfs -c -k $version
+	sudo update-initramfs -u -k $version
+	sudo update-grub
+	sync
+fi
