@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TERMINALCOMMAND="xfce4-terminal -H -e"
+TERMINALCOMMAND="gnome-terminal -e"
 QEMUCOMMAND="qemu-system-x86_64"
 
 echo "Which kernel should I use?"
@@ -14,7 +14,7 @@ select IMG in vm-disks/*; do
 done
 
 truncate -s 0 vm-aux/vm-swap.img
-truncate -s 8G vm-aux/vm-swap.img
+truncate -s 1G vm-aux/vm-swap.img
 /sbin/mkswap vm-aux/vm-swap.img > /dev/null
 
 IMGSTR="`basename $IMG`"
@@ -26,8 +26,8 @@ $QEMUCOMMAND -enable-kvm \
 	-smp 2 \
 	-m 2048 \
 	-boot d \
-	-drive file=$IMG,if=virtio,index=0 \
-	-drive file=vm-aux/vm-swap.img,if=virtio,index=1 \
+	-drive file=$IMG,if=virtio,index=0,format=raw \
+	-drive file=vm-aux/vm-swap.img,if=virtio,index=1,format=raw \
 	-vga std \
 	-kernel $KERN \
 	-append 'root=/dev/vda ignore_loglevel debug console=hvc0' \
