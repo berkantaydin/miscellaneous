@@ -1,43 +1,17 @@
 #!/bin/bash
 
-TERMINALCOMMAND="gnome-terminal -e"
+TESTPATH="$HOME/git/miscellaneous/tools/testing"
 QEMUCOMMAND="qemu-system-x86_64"
+TERMINALCOMMAND="tmux split-window -v"
 
 echo "Which kernel should I use?"
-select KERN in kernels/*; do
+select KERN in $TESTPATH/kernels/*; do
 	break;
 done
 
 echo "Which disk image should I use as the root filesystem?"
-select IMG in vm-disks/*; do
+select IMG in $TESTPATH/vm-disks/*; do
 	break;
 done
 
-truncate -s 0 vm-aux/vm-swap.img
-truncate -s 1G vm-aux/vm-swap.img
-/sbin/mkswap vm-aux/vm-swap.img > /dev/null
-
-IMGSTR="`basename $IMG`"
-
-$TERMINALCOMMAND "bash -c \"sleep 1; socat /tmp/hvtty-$IMGSTR -,raw,icanon=0,echo=0; read\"" &
-$TERMINALCOMMAND "bash -c \"sleep 1; socat /tmp/console-$IMGSTR -,raw,icanon=0,echo=0\"" &
-$QEMUCOMMAND -enable-kvm \
-	-cpu host \
-	-smp 2 \
-	-m 2048 \
-	-boot d \
-	-drive file=$IMG,if=virtio,index=0,format=raw \
-	-drive file=vm-aux/vm-swap.img,if=virtio,index=1,format=raw \
-	-vga std \
-	-kernel $KERN \
-	-append 'root=/dev/vda ignore_loglevel debug console=hvc0' \
-	-display none \
-	-device virtio-serial \
-	-chardev socket,path=/tmp/hvtty-$IMGSTR,server,nowait,id=hostconsole \
-	-chardev socket,path=/tmp/console-$IMGSTR,server,nowait,id=hostlogin \
-	-device virtioconsole,chardev=hostconsole,driver=virtconsole \
-	-device virtioconsole,chardev=hostlogin,driver=virtconsole
-
-echo "Cleaning up..."
-rm -rf /tmp/console-$IMGSTR
-rm -rf /tmp/hvtty-$IMGSTR
+tmux new-window -n \"kvm\" -a "$TESTPATH/start-kvm.sh \"$QEMUCOMMAND\" \"$TESTPATH\" \"$IMG\" \"$KERN\""

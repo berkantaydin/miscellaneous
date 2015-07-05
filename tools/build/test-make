@@ -8,7 +8,7 @@ HOSTNAME="test" $BUILD_SCR_DIR/local-make -b
 
 cd $LINUX_SRC_DIR
 curcommit=`git rev-parse HEAD`
-curcommit="${curcommit:0:8}"
-curbranch=`git rev-parse --abbrev-ref HEAD`
+curcommit="${curcommit:0:12}"
+curbranch=`git rev-parse --abbrev-ref HEAD | tr '/' ':'`
 
 cp arch/x86/boot/bzImage $TESTING_DIR/kernels/vmlinuz-$curbranch-$curcommit-kvm
