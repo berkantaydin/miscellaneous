@@ -1,88 +1,36 @@
-This is a couple programs to test the speed of various x86 instructions for
-copying or zeroing memory across different CPU models. The page zeroing test
-is a bit stupid, it really just measures the speed of the L1 cache in the CPU,
-and to some extent how much the CPU can optimize sequential small instructions.
+Results from the memcpy() test on various crap I have laying around
+===============================================================================
 
-Not very scientific, just messing around. Some observations:
-	* The AMD processor is much less aggressive about optimizing smaller
-	  sized operations. It also appears that using the SSE/AVX registers is
-	  much more of a win on these CPUs.
-	* Despite the very different clock speeds, the two Intel CPUs had nearly
-	  identical times for copying 10GB back and forth. Turns out the RAM in
-	  these machines have nearly identical specs (clock speed, etc), so what
-	  we're seeing there is the CPU completely saturating the memory
-	  controller/bus.
-================================================================================
+"Intel(R) Core(TM) i7-4770 CPU"
+naive_incaddr       : 4.169103492 seconds, 407us/MiB, 1590ns/page, 24.850ns/cacheline
+naive_effaddr       : 3.887257933 seconds, 379us/MiB, 1482ns/page, 23.170ns/cacheline
+sse_nocache64       : 1.477299619 seconds, 144us/MiB, 563ns/page, 8.805ns/cacheline
+sse_aligned128      : 1.366649293 seconds, 133us/MiB, 521ns/page, 8.146ns/cacheline
+avx_aligned256      : 1.368105690 seconds, 133us/MiB, 521ns/page, 8.155ns/cacheline
+erms                : 1.447486424 seconds, 141us/MiB, 552ns/page, 8.628ns/cacheline
+glibc               : 2.324269442 seconds, 226us/MiB, 886ns/page, 13.854ns/cacheline
 
-Bach:		AMD Phenom(tm) II X4 965 Processor @ 3.40GHz
-		gcc (Debian 4.7.2-5) 4.7.2
-Mozart:		Intel(R) Core(TM) i7-3630QM CPU @ 2.40GHz
-		gcc (Gentoo 4.8.3 p1.1, pie-0.5.9) 4.8.3
-Beethoven:	Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz
-		gcc (Gentoo 4.8.3 p1.1, pie-0.5.9) 4.8.3
+"Intel(R) Core(TM) M-5Y10c CPU"
+naive_incaddr       : 8.001863561 seconds, 781us/MiB, 3052ns/page, 47.695ns/cacheline
+naive_effaddr       : 7.208964121 seconds, 704us/MiB, 2750ns/page, 42.969ns/cacheline
+sse_nocache64       : 1.397266486 seconds, 136us/MiB, 533ns/page, 8.328ns/cacheline
+sse_aligned128      : 1.392211446 seconds, 135us/MiB, 531ns/page, 8.298ns/cacheline
+avx_aligned256      : 1.452235546 seconds, 141us/MiB, 553ns/page, 8.656ns/cacheline
+erms                : 2.440920649 seconds, 238us/MiB, 931ns/page, 14.549ns/cacheline
+glibc               : 2.216814518 seconds, 216us/MiB, 845ns/page, 13.213ns/cacheline
 
-calvinow@Bach:~/git/miscellaneous/fun-hacks/memcpy-benchmarks$ ./test-zero 
-Zeroing 10000000 pages, 8 algos...
-8-bit at-a-time:        2420 nanoseconds
-16-bit at-a-time:       0561 nanoseconds
-32-bit at-a-time:       0257 nanoseconds
-64-bit at-a-time:       0123 nanoseconds
-128-bit at-a-time:      0122 nanoseconds
-float128 at-a-time:     0104 nanoseconds
-x86 string insns:       0095 nanoseconds
-x86 nocache64 write:    0743 nanoseconds
-calvinow@Bach:~/git/miscellaneous/fun-hacks/memcpy-benchmarks$ ./test-memcpy 
-Performing 9 tests!
-8-bit at-a-time:        9299782345 nanoseconds
-16-bit at-a-time:       6313198095 nanoseconds
-32-bit at-a-time:       4747488047 nanoseconds
-64-bit at-a-time:       4219804568 nanoseconds
-128-bit at-a-time:      3912609417 nanoseconds
-float128 at-a-time:     3912873937 nanoseconds
-x86 string insns:       5023073432 nanoseconds
-x86 nocache64 write:    3087693456 nanoseconds
-Glibc builtin memcpy:   2154522543 nanoseconds
+"AMD Phenom(tm) II X4 965 Processor"
+naive_incaddr       : 10.516847219 seconds, 1027us/MiB, 4011ns/page, 62.685ns/cacheline
+naive_effaddr       : 8.419750150 seconds, 822us/MiB, 3211ns/page, 50.186ns/cacheline
+sse_nocache64       : 3.925173796 seconds, 383us/MiB, 1497ns/page, 23.396ns/cacheline
+sse_aligned128      : 2.576411534 seconds, 251us/MiB, 982ns/page, 15.357ns/cacheline
+erms                : 5.882545111 seconds, 574us/MiB, 2244ns/page, 35.063ns/cacheline
+glibc               : 2.539394814 seconds, 247us/MiB, 968ns/page, 15.136ns/cacheline
 
-calvinow@Mozart ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-zero 
-Zeroing 10000000 pages, 8 algos...
-8-bit at-a-time:        0092 nanoseconds
-16-bit at-a-time:       0088 nanoseconds
-32-bit at-a-time:       0087 nanoseconds
-64-bit at-a-time:       0087 nanoseconds
-128-bit at-a-time:      0086 nanoseconds
-float128 at-a-time:     0087 nanoseconds
-x86 string insns:       0085 nanoseconds
-x86 nocache64 write:    0298 nanoseconds
-calvinow@Mozart ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-memcpy 
-Performing 9 tests!
-8-bit at-a-time:        6849124344 nanoseconds
-16-bit at-a-time:       3489596552 nanoseconds
-32-bit at-a-time:       2269032305 nanoseconds
-64-bit at-a-time:       1895534989 nanoseconds
-128-bit at-a-time:      1897680049 nanoseconds
-float128 at-a-time:     1899598018 nanoseconds
-x86 string insns:       1468721836 nanoseconds
-x86 nocache64 write:    1579600237 nanoseconds
-Glibc builtin memcpy:   1902726124 nanoseconds
-
-calvinow@Beethoven ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-zero 
-Zeroing 10000000 pages, 8 algos...
-8-bit at-a-time:        0070 nanoseconds
-16-bit at-a-time:       0068 nanoseconds
-32-bit at-a-time:       0070 nanoseconds
-64-bit at-a-time:       0070 nanoseconds
-128-bit at-a-time:      0068 nanoseconds
-float128 at-a-time:     0069 nanoseconds
-x86 string insns:       0038 nanoseconds
-x86 nocache64 write:    0215 nanoseconds
-calvinow@Beethoven ~/git/miscellaneous/fun-hacks/memcpy-benchmarks $ ./test-memcpy 
-Performing 9 tests!
-8-bit at-a-time:        3814964748 nanoseconds
-16-bit at-a-time:       2341559880 nanoseconds
-32-bit at-a-time:       2295235158 nanoseconds
-64-bit at-a-time:       2273557342 nanoseconds
-128-bit at-a-time:      2252497712 nanoseconds
-float128 at-a-time:     2241352170 nanoseconds
-x86 string insns:       1439448770 nanoseconds
-x86 nocache64 write:    1437539715 nanoseconds
-Glibc builtin memcpy:   2249946441 nanoseconds
+"Intel(R) Atom(TM) CPU  E3815  @ 1.46GHz"
+naive_incaddr       : 26.944831804 seconds, 2631us/MiB, 10278ns/page, 160.604ns/cacheline
+naive_effaddr       : 24.914561378 seconds, 2433us/MiB, 9504ns/page, 148.502ns/cacheline
+sse_nocache64       : 4.384458990 seconds, 428us/MiB, 1672ns/page, 26.133ns/cacheline
+sse_aligned128      : 4.275370471 seconds, 417us/MiB, 1630ns/page, 25.483ns/cacheline
+erms                : 6.387949035 seconds, 623us/MiB, 2436ns/page, 38.075ns/cacheline
+glibc               : 6.279972405 seconds, 613us/MiB, 2395ns/page, 37.432ns/cacheline
