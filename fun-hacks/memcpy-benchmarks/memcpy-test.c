@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,11 +14,7 @@
 #define TESTED_BYTES ((TEST_BUFFER_SIZE * NR_TEST_COPIES))
 
 #define CACHE_LINE_BYTES 64
-#define NR_CPUS 8
-
-struct cache_line {
-	char b[CACHE_LINE_BYTES];
-} __attribute__((aligned(CACHE_LINE_BYTES)));
+#define MAX_NR_CPUS 8
 
 static inline void flush_cache_line(const void *addr)
 {
@@ -29,36 +24,94 @@ static inline void flush_cache_line(const void *addr)
 static void dump_caches(const void *a, const void *b, size_t n)
 {
 	size_t i;
-	const struct cache_line *csrc = a;
-	const struct cache_line *cdst = b;
+	const char *aa = a;
+	const char *bb = b;
 
-	n /= sizeof(struct cache_line);
+	n /= CACHE_LINE_BYTES;
 	for (i = 0; i < n; i++) {
-		flush_cache_line(&cdst[i]);
-		flush_cache_line(&csrc[i]);
+		flush_cache_line(aa + i * CACHE_LINE_BYTES);
+		flush_cache_line(bb + i * CACHE_LINE_BYTES);
 	}
 	asm volatile ("mfence;" ::: "memory");
 }
 
-static void *memcpy_erms(void *dst, const void *src, size_t n)
+static void *naive_incaddr(void *dst, const void *src, size_t n)
 {
-	asm volatile ("rep movsb;" :: "S" (dst), "D" (src), "c" (n) : "memory");
+	void *ret = dst;
+	unsigned long tmp = 0;
+
+	while (n--) {
+		asm ("movb (%0),%b1; movb %b1,(%2);" ::
+			"r" (src), "r" (tmp), "r" (dst) :
+			"memory");
+		src++;
+		dst++;
+	}
+
+	return ret;
+}
+
+static void *naive_effaddr(void *dst, const void *src, size_t n)
+{
+	unsigned long tmp = 0;
+	size_t i;
+
+	for (i = 0; i < n; i++)
+		asm ("movb (%0,%3,1),%b1; movb %b1,(%2,%3,1);" ::
+			"r" (src), "r" (tmp), "r" (dst), "r" (i) :
+			"memory");
+
 	return dst;
 }
 
-/*
- * XXX: This one assumes 8-byte alignment
- */
-static void *memcpy_nocache(void *dst, const void *src, size_t n)
+static void *erms(void *dst, const void *src, size_t n)
 {
-	asm volatile (	"shr $3,%2;"
-			"1:\n"
-			"movq -0x8(%1,%2,8),%%rdx;"
-			"movntiq %%rdx,-0x8(%0,%2,8);"
-			"decq %2;"
-			"jnz 1b;"
-			"sfence;" ::
-			"r" (dst), "r" (src), "r" (n) : "%rdx");
+	asm ("rep movsb;" :: "S" (dst), "D" (src), "c" (n) : "memory","cc");
+	return dst;
+}
+
+static void *sse_nocache64(void *dst, const void *src, size_t n)
+{
+	unsigned long tmp = 0;
+	size_t i;
+
+	n /= 8;
+	for (i = 0; i < n; i++)
+		asm ("movq (%0,%3,8),%1; movntiq %1,(%2,%3,8);" ::
+				"r" (src), "r" (tmp), "r" (dst), "r" (i) :
+				"memory");
+
+	return dst;
+}
+
+static void *sse_aligned128(void *dst, const void *src, size_t n)
+{
+	double tmp = 0;
+	size_t i;
+
+	n /= 16;
+	for (i = 0; i < n; i++) {
+		asm ("movdqa (%0),%1; movdqa %1,(%0);" ::
+			"r" (src), "x" (tmp), "r" (dst) : "memory");
+		src += 16;
+		dst += 16;
+	}
+
+	return dst;
+}
+
+static void *avx_aligned256(void *dst, const void *src, size_t n)
+{
+	double tmp = 0;
+	size_t i;
+
+	n /= 32;
+	for (i = 0; i < n; i++) {
+		asm ("vmovdqa (%0),%1; vmovdqa %1,(%0);" ::
+			"r" (src), "x" (tmp), "r" (dst) : "memory");
+		src += 32;
+		dst += 32;
+	}
 
 	return dst;
 }
@@ -68,11 +121,16 @@ struct memcpy_func {
 	char *name;
 };
 
-#define MEMCPY_FUNC(fn, nm) {.func = fn, .name = nm,}
+#define MEMCPY_FUNC(fn) {.func = fn, .name = #fn,}
 static struct memcpy_func funcs[] = {
-	MEMCPY_FUNC(memcpy_nocache, "movnti"),
-	MEMCPY_FUNC(memcpy_erms, "erms"),
-	MEMCPY_FUNC(memcpy, "Glibc"),
+	MEMCPY_FUNC(naive_incaddr),
+	MEMCPY_FUNC(naive_effaddr),
+	MEMCPY_FUNC(sse_nocache64),
+	MEMCPY_FUNC(sse_aligned128),
+	MEMCPY_FUNC(avx_aligned256),
+	MEMCPY_FUNC(erms),
+	MEMCPY_FUNC(memcpy),
+	MEMCPY_FUNC(NULL),
 };
 
 static void *alloc_buffer(size_t size)
@@ -95,14 +153,14 @@ static int become_realtime_sortof(void)
 		.sched_priority = sched_get_priority_max(SCHED_FIFO),
 	};
 
-	cpumask = CPU_ALLOC(NR_CPUS);
+	cpumask = CPU_ALLOC(MAX_NR_CPUS);
 	if (!cpumask)
 		return -1;
 
 	CPU_ZERO(cpumask);
 	ret = sched_getcpu();
 	CPU_SET(ret, cpumask);
-	ret = sched_setaffinity(0, CPU_ALLOC_SIZE(NR_CPUS), cpumask);
+	ret = sched_setaffinity(0, CPU_ALLOC_SIZE(MAX_NR_CPUS), cpumask);
 	if (ret == -1)
 		return -1;
 
@@ -111,7 +169,7 @@ static int become_realtime_sortof(void)
 
 int main(void)
 {
-	int i, j, nr_tests;
+	int i, j;
 	long nsec_elapsed;
 	char *src_buf, *dst_buf;
 	struct memcpy_func *cur;
@@ -123,12 +181,7 @@ int main(void)
 	if (become_realtime_sortof())
 		printf("WARNING: Couldn't become realtime sortof: %m\n");
 
-	nr_tests = sizeof(funcs) / sizeof(funcs[0]);
-	printf("Performing %d tests, %.3fGiB!\n", nr_tests,
-		TESTED_BYTES / (double) (1UL << 30));
-	for (i = 0; i < nr_tests; i++) {
-		cur = &funcs[i];
-
+	for (i = 0; (cur = &funcs[i]) && cur->func; i++) {
 		/*
 		 * Dump all testing area out of the cache.
 		 */
@@ -143,7 +196,7 @@ int main(void)
 
 		nsec_elapsed = (now.tv_sec - then.tv_sec) * 1000000000L;
 		nsec_elapsed += (now.tv_nsec - then.tv_nsec);
-		printf("%s:\t%.9f seconds, %luus/MiB, %luns/page, %.3fns/cacheline\n",
+		printf("%-20s: %.9f seconds, %luus/MiB, %luns/page, %.3fns/cacheline\n",
 			cur->name,
 			nsec_elapsed / (double) 1000000000L,
 			(nsec_elapsed / (TESTED_BYTES >> 20)) / 1000L,
