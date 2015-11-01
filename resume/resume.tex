@@ -1,9 +1,4 @@
-% resume.tex: My current resume
-%
-% Name:		Calvin Owens
-% E-Mail:	jcalvinowens@gmail.com
-% Address: 	3410 Heather Hill Dr, Garland, TX 75044-2030
-% Phone:	+12143647857
+% resume.tex: My resume
 %
 % This document is released into the public domain. This applies worldwide. In
 % case this is not legally possible, the creator grants anyone the right to use
@@ -27,7 +22,6 @@
 \begin{document}
 
 \centerline{{\Huge \sc Calvin Owens}}
-\centerline{131 Carmelita Dr, Mountain View, CA 94040-3205}
 \centerline{+12143647857 \textbullet \hspace{1pt} jcalvinowens@gmail.com}
 \centerline{www.github.com/jcalvinowens}
 
@@ -48,59 +42,31 @@
 \underline{Position:} Production Engineer, Kernel
 \vspace*{6pt}\\
 \noindent\centerline{\bf Google \hfill May 2013 - October 2013}
-\underline{Position:} Google Summer of Code participant, working for the Linux Foundation. \\
+\underline{Position:} Google Summer of Code participant, working for the Linux Foundation.
 \vspace*{6pt}\\
 \noindent\centerline{\bf Highland Park High School \hfill January 2013 - May 2014}
-\underline{Position:} Private clarinet instructor (Weekly half-hour lessons; 10 students).
+\underline{Position:} Private clarinet instructor
 
 \noindent
 \hrulefill
 
-\centerline{\underline{\bf Skills and Proficiencies}}
-
-\begin{multicols}{2}
-
-\centerline{\bf Programming Languages}
-\bigskip
-\noindent Highly proficient in:\\
-\centerline{\hfill $\bullet$ C \hfill $\bullet$ Python \hfill $\bullet$ Shell Scripting \hfill}
-\noindent Familiar with:\\
-\centerline{\hfill $\bullet$ C++ \hfill $\bullet$ Java \hfill $\bullet$ JavaScript \hfill $\bullet$ Perl \hfill $\bullet$ PHP \hfill}
-\noindent Assembly languages:\\
-\centerline{\hfill $\bullet$ ARM \hfill $\bullet$ MIPS \hfill $\bullet$ x86 \hfill}
-
-\bigskip
-
-\centerline{\bf Skills}
+\centerline{\underline{\bf Open Source Contributions}}
 \begin{itemize}[leftmargin=*]
 \itemsep 0em
-	\item Extremely well-versed in the setup and administration of Linux
-	systems, particularly Gentoo and Debian.
-	\item Intimately familiar with common networking protocols and configurations.
-	\item Extensive knowledge of digital cryptography.
-	\item In-depth knowledge of Linux Kernel functionality, programming, and debugging.
-\end{itemize}
-
-\columnbreak
-
-\centerline{\bf Open Source Work}
-\begin{itemize}[leftmargin=*]
-\itemsep 0em
-	\item Linux Kernel - 3 commits upstream:
+	\item Linux Kernel
 	\begin{itemize}
 	\itemsep 0em
-		\item b1ea3e6e: Bugfix in the Nouveau GPU driver.
-		\item 1539d4f8: Driver fix to support 192KHz recording on a certain USB sound card.
-		\item dfa1ad29: Aesthetic addition to kdmesg output from IEEE 802.11 driver.
-	\end{itemize}
-	\item Personal projects:
-	\begin{itemize}
-	\itemsep 0em
-		\item AsmHTTPd: Minimalist HTTP webserver, written entirely in x86-64 assembler.
-		\item DataBlaster: Utility for sending files lossily over UDP at a constant bitrate.
+		\item \begin{verbatim}bdb4d10 procfs: always expose /proc/<pid>/map_files/ and make it readable\end{verbatim}
+		\item \begin{verbatim}008549f mpt2sas: Refcount fw_events and fix unsafe list usage\end{verbatim}
+		\item \begin{verbatim}d224fe0 mpt2sas: Refcount sas_device objects and fix unsafe list usage\end{verbatim}
+		\item \begin{verbatim}5d37852 Revert "net: limit tcp/udp rmem/wmem to SOCK_{RCV,SND}BUF_MIN"\end{verbatim}
+		\item \begin{verbatim}28423ad ksoftirqd: Enable IRQs and call cond_resched() before poking RCU\end{verbatim}
+		\item \begin{verbatim}0c228e8 tcp: Restore RFC5961-compliant behavior for SYN packets\end{verbatim}
+		\item \begin{verbatim}50656d9 ipvs: Keep skb->sk when allocating headroom on tunnel xmit\end{verbatim}
+		\item \begin{verbatim}dfa1ad2 ieee80211: Print human-readable disassoc/deauth reason codes\end{verbatim}
+		\item \begin{verbatim}1539d4f ALSA: usb: Add quirk for 192KHz recording on E-Mu devices\end{verbatim}
+		\item \begin{verbatim}b1ea3e6 drm/nouveau: fix unconditional return waiting on memory\end{verbatim}
 	\end{itemize}
 \end{itemize}
-
-\end{multicols}
 
 \end{document}

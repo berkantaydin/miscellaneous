@@ -1,0 +1,10 @@
+Chess-engine: A (currently very simplistic) chess AI, written in C
+
+This isn't very serious, just something I've enjoyed playing around with. I
+haven't had enough time to really finish it. The current implementation ignores
+En Passant and Castling, since these are the only chess moves that have
+hysteresis. It also ignores promotion.
+
+More laughably, it doesn't understand check or checkmate, and uses a very naive
+heuristic based on point values of pieces. So it doesn't actually play to win
+chess, it plays to maximize it's point advantage over the opposing player.

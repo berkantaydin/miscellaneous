@@ -1,9 +1,7 @@
 This repo is for smaller projects that don't merit their own git repo.
 
 Folders:
-	* /patches:		Patches for open-source projects that aren't
-				submitted upstream for various reasons.
-	* /tools:		Scripts and such I share across all my machines
-				live here so they all stay up-to-date.
-	* /fun-hacks:		Things I've written that may be of interest.
+	* /patches:		Non-upstreamable patches.
+	* /tools:		Scripts, dotfiles, etc.
+	* /projects:		Things I've written that may be of interest.
 	* /resume:		My resume.

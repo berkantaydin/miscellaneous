@@ -1,0 +1,16 @@
+DataBlaster
+---------------------
+This is a (currently very limited) simple utility that will transfer a file
+across the network at a constant specified bandwidth, disregarding data loss.
+Currently, lost blocks of data are noted and re-transmitted after the fact
+over TCP, but this is obviously non-ideal.
+
+Portability between 32/64 bit x86en has been tested; portability to other
+architectures *should* work, but is not guaranteed. Specifically, it is
+assumed that using XtoXl() on the high and low 32-bits of a 64-bit integer (and
+subsequent shifting) is sufficient to translate back and forth to big endian
+ordering.
+
+Current arguments:
+	db -S filename src_port dst_addr dst_port speed (integer, MB/s)
+	db -R filename src_port recv_addr recv_port
