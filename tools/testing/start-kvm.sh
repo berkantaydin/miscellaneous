@@ -32,6 +32,10 @@ $QEMUCOMMAND -enable-kvm \
 	-device virtioconsole,chardev=hostconsole,driver=virtconsole \
 	-device virtioconsole,chardev=hostlogin,driver=virtconsole
 
+if [ "$?" != "0" ]; then
+	read
+fi
+
 echo "Cleaning up..."
 rm -rf $TESTPATH/vm-aux/vm-swap-$IMGSTR
 rm -rf /tmp/console-$IMGSTR
