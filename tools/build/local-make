@@ -59,11 +59,11 @@ fi
 
 # Grab the current version name
 make kernelrelease $MAKEOPTS
-version=`make $MAKEOPTS kernelrelease | grep -R '[0-9]\..*' -`
+version=`make -s $MAKEOPTS kernelrelease | grep -R '[0-9]\..*' -`
 
 # Actually build the kernel
 echo "Building Linux $version..."
-$TIMECMD make $MAKEOPTS tar-pkg
+$TIMECMD make -s $MAKEOPTS tar-pkg
 
 maybe_backup_config
 
