@@ -10,7 +10,10 @@
  * The code has been un-generalized: only AES128 is supported.
  */
 
+#include <stdlib.h>
 #include <stdint.h>
+
+#include "include/aes.h"
 
 /* Complain if this isn't a little-endian CPU */
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
@@ -1182,10 +1185,15 @@ static const uint32_t crypto_il_tab[4][256] = {
 	i_rl(bo, bi, 3, k);	\
 } while (0)
 
-void aes128_expand_key(struct aes_ctx *ctx, void *in_key)
+struct aes_ctx *aes128_expand_key(void *in_key)
 {
 	uint32_t *key = in_key;
 	uint32_t i, t, u, v, w, j;
+	struct aes_ctx *ctx;
+
+	ctx = calloc(1, sizeof(*ctx));
+	if (!ctx)
+		return NULL;
 
 	ctx->key_dec[40] = ctx->key_enc[0] = (key[0]);
 	ctx->key_dec[41] = ctx->key_enc[1] = (key[1]);
@@ -1205,6 +1213,8 @@ void aes128_expand_key(struct aes_ctx *ctx, void *in_key)
 		j = 40 - (i & ~3) + (i & 3);
 		imix_col(ctx->key_dec[j], ctx->key_enc[i]);
 	}
+
+	return ctx;
 }
 
 void aes128_encrypt(struct aes_ctx *ctx, void *buf)
@@ -1267,22 +1277,21 @@ int aes_cipher_test(void)
 		{'\x43','\xb1','\xcd','\x7f','\x59','\x8e','\xce','\x23','\x88','\x1b','\x00','\xe3','\xed','\x03','\x06','\x88'},
 		{'\x7b','\x0c','\x78','\x5e','\x27','\xe8','\xad','\x3f','\x82','\x23','\x20','\x71','\x04','\x72','\x5d','\xd4'}};
 	char buf[16];
-
-	struct aes_ctx ctx;
-	aes128_expand_key(&ctx, &key);
+	struct aes_ctx *ctx = aes128_expand_key(&key);
 
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 16; j++) // Copy in vector
 			buf[j] = vectors[i][j];
-		aes128_encrypt(&ctx, &buf);
+		aes128_encrypt(ctx, &buf);
 		for (int j = 0; j < 16; j++) // Check encryption
 			if (buf[j] != results[i][j])
 				return -1;
-		aes128_decrypt(&ctx, &buf);
+		aes128_decrypt(ctx, &buf);
 		for (int j = 0; j < 16; j++) // Check decryption
 			if (buf[j] != vectors[i][j])
 				return -1;
 	}
 
+	free(ctx);
 	return 0;
 }

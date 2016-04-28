@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/x86 4.6.0-rc1 Kernel Configuration
+# Linux/x86 4.6.0-rc5 Kernel Configuration
 #
 CONFIG_64BIT=y
 CONFIG_X86_64=y
@@ -1588,6 +1588,7 @@ CONFIG_SERIAL_8250_RUNTIME_UARTS=4
 # CONFIG_SERIAL_8250_EXTENDED is not set
 # CONFIG_SERIAL_8250_FSL is not set
 # CONFIG_SERIAL_8250_DW is not set
+# CONFIG_SERIAL_8250_RT288X is not set
 # CONFIG_SERIAL_8250_FINTEK is not set
 # CONFIG_SERIAL_8250_MID is not set
 # CONFIG_SERIAL_8250_MOXA is not set
@@ -2266,7 +2267,7 @@ CONFIG_DRM_FBDEV_EMULATION=y
 # CONFIG_DRM_AMDGPU is not set
 
 #
-# ACP Configuration
+# ACP (Audio CoProcessor) Configuration
 #
 # CONFIG_DRM_AMD_ACP is not set
 # CONFIG_DRM_NOUVEAU is not set

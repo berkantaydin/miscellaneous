@@ -1,26 +1,22 @@
-CC=gcc
-CFLAGS=-O3 -c -Wall -Wextra -Werror=implicit-function-declaration -Winline -Wno-unused-function -Wno-unused-parameter -std=gnu99
-LDFLAGS=-lrt
-SOURCES=aes.c rng.c bfi.c rsa.c main.c
-OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=toy-rsa
+CC = gcc
+CFLAGS = -O3 -c -fno-strict-aliasing -D_GNU_SOURCE -Wall -Wextra \
+	-Werror=implicit-function-declaration -Wdeclaration-after-statement \
+	-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
+	-Winline -Wno-unused-function -Wno-unused-parameter
 
-all: $(SOURCES) $(EXECUTABLE)
+#CFLAGS += -gdwarf-4 -fsanitize=address -fsanitize=undefined
+#LDFLAGS = -lasan -lubsan
 
-debug: debugcflag $(GENHDRS) $(SOURCES) $(EXECUTABLE)
-debug32: debug32flags debugcflag $(GENHDRS) $(SOURCES) $(EXECUTABLE)
+obj = bfi.o aes.o rng.o rsa.o main.o
+binary = toy-rsa
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+all: $(obj) $(binary)
 
-.o:
-	$(CC) $(CFLAGS) $< -o $@
+$(binary): $(obj)
+	$(CC) $(LDFLAGS) $(obj) -o $@
+
+%.o: %.c
+	$(CC) $< $(CFLAGS) $(INCLUDES) -c -o $@
 
 clean:
 	rm -f *.o toy-rsa
-
-debugcflag: CFLAGS += -DDEBUG -DURANDOM
-debugcflag: all
-debug32flags: CFLAGS += -DDEBUG -DURANDOM -m32
-debug32flags: LDFLAGS += -m32
-debug32flags: all

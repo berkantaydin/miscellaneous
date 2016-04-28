@@ -2,35 +2,25 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "aes.h"
-#include "rsa.h"
-#include "rng.h"
+#include "include/aes.h"
+#include "include/rsa.h"
+#include "include/rng.h"
 
-void print_arr(char *a, int len)
+int main(int argc, char **argv)
 {
-	for (int i = 0; i < len; i++)
-		printf("%hhx",a[i]);
-	printf("\n");
-}
+	int bits = 256;
 
-void test_rsa_forever(void)
-{
-	int i = 100;
-	while (i--) {
-		printf("Testing RSA... ");
-		if (rsa_cipher_test()) {
-			printf("FAILED!\n");
-			abort();
-		} else {
-			printf("PASSED!\n");
-		}
-	}
-}
-
-int main(void)
-{
-	init_rng();
-	printf("Hello world!\n");
+	puts("Testing RSA forever...");
 	setvbuf(stdout, NULL, _IONBF, 0);
-	test_rsa_forever();
+
+	if (argc > 1)
+		bits = atoi(argv[1]);
+
+	init_rng();
+
+	while (!rsa_cipher_test(bits))
+		puts("PASSED!");
+
+	puts("FAILED!");
+	abort();
 }
