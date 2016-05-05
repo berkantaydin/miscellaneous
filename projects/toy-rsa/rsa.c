@@ -1,6 +1,8 @@
 /*
  * rsa.c: Simple RSA implementation
  *
+ * See bfi.c in this directory for the BIGNUM library implementation used here.
+ *
  * Copyright (C) 2016 Calvin Owens <jcalvinowens@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -42,7 +44,10 @@ static void free_key(struct rsa_key *r)
 }
 
 /*
- * Return the modular multiplicative inverse of e mod tot
+ * Returns the modular multiplicative inverse of e mod tot
+ *
+ * https://en.wikipedia.org/wiki/Modular_multiplicative_inverse
+ * https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
  */
 static struct bfi *mod_inv(struct bfi *e, struct bfi *tot)
 {
@@ -78,70 +83,65 @@ static struct bfi *mod_inv(struct bfi *e, struct bfi *tot)
 
 	bfi_modulo(x_last, tot);
 
+	bfi_free(a);
+	bfi_free(b);
+	bfi_free(m);
+	bfi_free(x);
 	return x_last;
 }
 
+/*
+ * Use the Fermat primality test to determine with a very high probability
+ * whether @b is likely to be a prime number.
+ *
+ * https://en.wikipedia.org/wiki/Fermat_primality_test
+ */
 static int bfi_is_prime(struct bfi *n)
 {
 	struct bfi *rnd = bfi_alloc(bfi_len(n));
 	struct bfi *nminusone = bfi_copy(n);
 	struct bfi *res;
-	int i, ret = 0;
+	int i = 10, ret = -1;
 
 	bfi_dec(nminusone);
-	for (i = 0; i < 10; i++) {
+	do {
 		putchar('+');
+
 		rng_fill_mem(bfi_raw(rnd), bfi_len(rnd) / CHAR_BIT);
 		res = bfi_mod_exp(rnd, nminusone, n);
-		if (!bfi_is_one(res))
-			goto not_prime;
-	}
+		ret = !!bfi_is_one(res);
+		bfi_free(res);
+	} while(i-- && ret);
 
-	/*
-	 * Probably prime
-	 */
-	ret = 1;
-
-not_prime:
 	bfi_free(rnd);
-	bfi_free(res);
 	bfi_free(nminusone);
 	return ret;
 }
 
-static struct bfi *find_prime(unsigned int bits, struct bfi *e)
+/*
+ * Find a random prime number of the specified length (or less)
+ */
+static struct bfi *find_prime(unsigned int bits)
 {
 	struct bfi *prime = bfi_alloc(bits);
-	struct bfi *tmp;
 
-	puts("Searching for prime: ");
-
+	printf("Searching for %u bit prime: ", bits);
 	while (1) {
 		putchar('.');
-		bfi_extend(prime, bits);
+
 		rng_fill_mem(bfi_raw(prime), bits / CHAR_BIT);
+		bfi_extend(prime, bits);
 
 		/*
 		 * Don't waste time on even numbers.
 		 */
 		bfi_raw(prime)[0] |= 0x01UL;
 
-		if (bfi_is_divby_three(prime))
-			continue;
-
-		bfi_dec(prime);
-		tmp = bfi_gcd(prime, e);
-
-		if (!bfi_is_one(tmp)) {
-			putchar('!');
-			bfi_free(tmp);
-			continue;
-		}
-
-		bfi_free(tmp);
-		bfi_inc(prime);
-
-		if (bfi_is_prime(prime))
+		/*
+		 * Checking for divisibility by 3 is cheap, don't waste time
+		 * those numbers either.
+		 */
+		if (!bfi_is_divby_three(prime) && bfi_is_prime(prime))
 			break;
 	}
 
@@ -151,59 +151,62 @@ static struct bfi *find_prime(unsigned int bits, struct bfi *e)
 
 void rsa_generate_keypair(struct rsa_key **pub, struct rsa_key **priv, int bits)
 {
-	struct bfi *p, *q, *d, *mod, *tot, *tmp;
+	struct bfi *p, *q, *d, *mod, *tot;
 	struct bfi *e = bfi_alloc(64);
 
-	bfi_raw(e)[0] = 65537;
+	printf("Generating %d bit RSA key...\n", bits);
 
-	printf("Generating RSA key... ");
-	p = find_prime(bits >> 1, e);
-	q = find_prime(bits >> 1, e);
-	mod = bfi_multiply(p, q);
+	p = find_prime(bits >> 1);
+	q = find_prime(bits >> 1);
 
-	puts("Found a key!");
 	printf("p: ");
 	bfi_print(p);
 	printf("q: ");
 	bfi_print(q);
 
+	mod = bfi_multiply(p, q);
+
+	printf("m: ");
+	bfi_print(mod);
+
 	bfi_dec(p);
 	bfi_dec(q);
 	tot = bfi_multiply(p, q);
-	d = mod_inv(e, tot);
 
 	printf("t: ");
 	bfi_print(tot);
 
+	bfi_raw(e)[0] = 65537;
+
 	printf("e: ");
 	bfi_print(e);
-	printf("m: ");
-	bfi_print(mod);
+
+	d = mod_inv(e, tot);
+
 	printf("d: ");
 	bfi_print(d);
 
-	bfi_free(tot);
-	bfi_free(p);
-	bfi_free(q);
-
 	*pub = calloc(1, sizeof(**pub));
-	*priv = calloc(1, sizeof(**priv));
-
-	tmp = bfi_copy(mod);
-
 	(*pub)->exp = e;
 	(*pub)->mod = mod;
-	(*priv)->mod = tmp;
+	*priv = calloc(1, sizeof(**priv));
 	(*priv)->exp = d;
+	(*priv)->mod = bfi_copy(mod);
+
+	bfi_free(p);
+	bfi_free(q);
+	bfi_free(tot);
 }
 
 int rsa_cipher_test(int bits)
 {
-	struct rsa_key *pub,*priv;
+	struct rsa_key *pub, *priv;
 	struct bfi *secret, *ciphertext, *decrypted;
 	int ret = -1;
 
 	rsa_generate_keypair(&pub, &priv, bits);
+
+	printf("Testing %d bit RSA key:\n", bits);
 
 	secret = bfi_alloc(128);
 	#if LONG_BIT == 64
@@ -214,19 +217,21 @@ int rsa_cipher_test(int bits)
 	bfi_raw(secret)[1] = 0xbeefbeefUL;
 	bfi_raw(secret)[2] = 0xbeefbeefUL;
 	bfi_raw(secret)[3] = 0xbeefbeefUL;
+	#else
+	#error "LONG_BIT is not 32 or 64"
 	#endif
 
-	printf("Secret: \t\t");
+	printf("S: ");
 	bfi_print(secret);
 
 	ciphertext = bfi_mod_exp(secret, pub->exp, pub->mod);
 
-	printf("Ciphertext: \t\t");
+	printf("C: ");
 	bfi_print(ciphertext);
 
 	decrypted = bfi_mod_exp(ciphertext, priv->exp, priv->mod);
 
-	printf("Decrypted: \t\t");
+	printf("D: ");
 	bfi_print(decrypted);
 
 	if (!bfi_cmp(decrypted, secret))

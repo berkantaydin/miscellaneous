@@ -1,18 +1,6 @@
-This is a completely written-from-scratch implementation of RSA.
+This is a written-from-scratch toy implementation of RSA.
 
-It's utterly useless for any practical application, but as a tool for
-understanding how RSA works I think it could be instructive. Most of the
-real-world implementations are rather inaccessible, and despite accessibility
-not being an explicit goal when I wrote this, it's still much easier to
-understand than the RSA implementation in, say, OpenSSL.
+It's obviously useless for any practical application: the point is to be a very
+simple and easy to understand BIGNUM library with an RSA implementation.
 
-(At the very least, the process of writing it was very instructive for me...)
-
-I wrote this *very* quickly a while ago. It's horrendously slow, in large part
-because I used implemented division as shift-and-subtract for the BIGNUMs.
-
-In case this doesn't go without saying: DO NOT ACTUALLY USE THIS IRL. Timing
-attacks abound (I didn't even think about this while writing it), and it
-encrypts raw data directly, which for RSA is a big no-no.
-
-Build with `make debug`, or it will look like nothing is happening.
+Division is implemented as shift-and-subtract, so it's very very slow.

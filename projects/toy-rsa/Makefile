@@ -4,13 +4,18 @@ CFLAGS = -O3 -c -fno-strict-aliasing -D_GNU_SOURCE -Wall -Wextra \
 	-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
 	-Winline -Wno-unused-function -Wno-unused-parameter
 
-#CFLAGS += -gdwarf-4 -fsanitize=address -fsanitize=undefined
-#LDFLAGS = -lasan -lubsan
+prof: CFLAGS += -DCONSTRNG -DTESTCOUNT=1
+
+debug: CFLAGS += -O1 -gdwarf-4 -fno-omit-frame-pointer -fstack-protector-all \
+	-fsanitize=address -fsanitize=undefined
+debug: LDFLAGS += -lasan -lubsan
 
 obj = bfi.o aes.o rng.o rsa.o main.o
 binary = toy-rsa
 
 all: $(obj) $(binary)
+prof: all
+debug: all
 
 $(binary): $(obj)
 	$(CC) $(LDFLAGS) $(obj) -o $@

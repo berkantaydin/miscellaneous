@@ -82,7 +82,7 @@ static struct bfi *__bfi_alloc(int len)
 
 static inline int bitlen_to_words(int bitlen)
 {
-	return bitlen / LONG_BIT + 1;
+	return bitlen / LONG_BIT + !!(bitlen & (LONG_BIT - 1));
 }
 
 struct bfi *bfi_alloc(int bitlen)
@@ -92,6 +92,9 @@ struct bfi *bfi_alloc(int bitlen)
 
 void bfi_free(struct bfi *b)
 {
+	if (!b)
+		return;
+
 	free(b->n);
 	free(b);
 }

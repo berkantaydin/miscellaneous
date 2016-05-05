@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits.h>
+
 #define fatal(args...) \
 do { \
 	printf(args); \
@@ -25,18 +27,6 @@ do { \
 	y = _tmp;	\
 } while (0)
 
-#define __must_check __attribute__((warn_unused_result))
-
-#ifdef CONSTRNG
-#define ENTROPY_SOURCE "/dev/zero"
-#else
-#define ENTROPY_SOURCE "/dev/random"
+#ifndef TESTCOUNT
+#define TESTCOUNT LONG_MAX
 #endif
-
-#define PRINT_HEX_BLOB(x,n) \
-do { \
-	printf("0x"); \
-	for (int i = 0; i < n; i++) \
-		printf("%02hhx", (unsigned char) x[i]); \
-	printf("\n"); \
-} while(0)

@@ -62,6 +62,11 @@ void init_rng(void)
 	memcpy(ctr, &entropy[AES_BLOCKSIZE], AES_BLOCKSIZE);
 }
 
+void free_rng(void)
+{
+	free(rng_key);
+}
+
 static void put_next_counter(void *mem)
 {
 	unsigned i;
