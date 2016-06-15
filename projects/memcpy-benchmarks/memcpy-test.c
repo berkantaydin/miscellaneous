@@ -7,14 +7,7 @@
 #include <sys/mman.h>
 #include <sched.h>
 
-#define TEST_BUFFER_ORDER 30
-#define NR_TEST_COPIES 10
-#define TEST_BUFFER_SIZE ((1UL << TEST_BUFFER_ORDER))
-
-#define TESTED_BYTES ((TEST_BUFFER_SIZE * NR_TEST_COPIES))
-
 #define CACHE_LINE_BYTES 64
-#define MAX_NR_CPUS 8
 
 static inline void flush_cache_line(const void *addr)
 {
@@ -117,7 +110,7 @@ static void *avx_aligned256(void *dst, const void *src, size_t n)
 }
 
 struct memcpy_func {
-	void *(*func)(void*,const void*,size_t);
+	void *(*func)(void*, const void*, size_t);
 	char *name;
 };
 
@@ -135,74 +128,90 @@ static struct memcpy_func funcs[] = {
 
 static void *alloc_buffer(size_t size)
 {
-	void *ret = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE|MAP_POPULATE, 0, 0);
+	void *ret = mmap(NULL, size, PROT_READ|PROT_WRITE,
+			MAP_ANON|MAP_PRIVATE|MAP_POPULATE, 0, 0);
 
 	if (ret == MAP_FAILED) {
-		printf("Couldn't allocate buffers!\n");
+		puts("Couldn't allocate buffer!");
 		abort();
 	}
 
 	return ret;
 }
 
-static int become_realtime_sortof(void)
+
+static int monopolize_cpu(void)
 {
 	int ret;
-	cpu_set_t *cpumask;
+	cpu_set_t cpumask;
 	struct sched_param sp = {
 		.sched_priority = sched_get_priority_max(SCHED_FIFO),
 	};
 
-	cpumask = CPU_ALLOC(MAX_NR_CPUS);
-	if (!cpumask)
-		return -1;
+	CPU_ZERO(&cpumask);
 
-	CPU_ZERO(cpumask);
 	ret = sched_getcpu();
-	CPU_SET(ret, cpumask);
-	ret = sched_setaffinity(0, CPU_ALLOC_SIZE(MAX_NR_CPUS), cpumask);
+	CPU_SET(ret, &cpumask);
+
+	ret = sched_setaffinity(0, sizeof(cpumask), &cpumask);
 	if (ret == -1)
 		return -1;
 
 	return sched_setscheduler(0, SCHED_FIFO, &sp);
 }
 
-int main(void)
+void run_tests(int max_order, long count)
 {
-	int i, j;
-	long nsec_elapsed;
+	int order, i, j;
 	char *src_buf, *dst_buf;
 	struct memcpy_func *cur;
 	struct timespec then, now;
+	long nsec_elapsed, buffer_size, total_copied;
+	double ns_per_kbyte;
 
-	src_buf = alloc_buffer(TEST_BUFFER_SIZE);
-	dst_buf = alloc_buffer(TEST_BUFFER_SIZE);
+	buffer_size = 1L << max_order;
 
-	if (become_realtime_sortof())
-		printf("WARNING: Couldn't become realtime sortof: %m\n");
+	src_buf = alloc_buffer(buffer_size);
+	dst_buf = alloc_buffer(buffer_size);
+
+	printf("%20s:", "ORDER");
+	for (order = 4; order <= max_order; order++)
+		printf(" %-5d", order);
+	puts("");
 
 	for (i = 0; (cur = &funcs[i]) && cur->func; i++) {
-		/*
-		 * Dump all testing area out of the cache.
-		 */
-		dump_caches(src_buf, dst_buf, TEST_BUFFER_SIZE);
+		printf("%-20s:", cur->name);
 
-		clock_gettime(CLOCK_MONOTONIC_RAW, &then);
-		for (j = 0; j < NR_TEST_COPIES / 2; j++) {
-			cur->func(src_buf, dst_buf, TEST_BUFFER_SIZE);
-			cur->func(dst_buf, src_buf, TEST_BUFFER_SIZE);
+		for (order = 4; order <= max_order; order++) {
+			dump_caches(src_buf, dst_buf, 1UL << order);
+
+			clock_gettime(CLOCK_MONOTONIC_RAW, &then);
+			for (j = 0; j < count; j++) {
+				cur->func(src_buf, dst_buf, 1UL << order);
+				cur->func(dst_buf, src_buf, 1UL << order);
+			}
+			clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+
+			nsec_elapsed = (now.tv_sec - then.tv_sec) * 1000000000L;
+			nsec_elapsed += (now.tv_nsec - then.tv_nsec);
+
+			total_copied = (1L << order) * count * 2;
+			ns_per_kbyte = (double)nsec_elapsed / total_copied * 1000.0;
+			printf(" %05.0f", ns_per_kbyte);
 		}
-		clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
-		nsec_elapsed = (now.tv_sec - then.tv_sec) * 1000000000L;
-		nsec_elapsed += (now.tv_nsec - then.tv_nsec);
-		printf("%-20s: %.9f seconds, %luus/MiB, %luns/page, %.3fns/cacheline\n",
-			cur->name,
-			nsec_elapsed / (double) 1000000000L,
-			(nsec_elapsed / (TESTED_BYTES >> 20)) / 1000L,
-			(nsec_elapsed / (TESTED_BYTES >> 12)),
-			(nsec_elapsed / (double) (TESTED_BYTES / CACHE_LINE_BYTES)));
+		puts("");
 	}
 
+	munmap(src_buf, buffer_size);
+	munmap(dst_buf, buffer_size);
+}
+
+int main(void)
+{
+	if (monopolize_cpu())
+		printf("WARNING: Couldn't hog CPU: %m\n");
+
+	run_tests(25, 200);
 	return 0;
 }
