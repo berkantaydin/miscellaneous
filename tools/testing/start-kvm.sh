@@ -21,7 +21,7 @@ $QEMUCOMMAND -enable-kvm \
 	-m 2048 \
 	-boot d \
 	-drive file=$IMG,if=virtio,index=0,format=raw \
-	-drive file=$TESTPATH/vm-aux/vm-swap.img,if=virtio,index=1,format=raw \
+	-drive file=$TESTPATH/vm-aux/vm-swap-$IMGSTR,if=virtio,index=1,format=raw \
 	-vga std \
 	-kernel $KERN \
 	-append 'root=/dev/vda ignore_loglevel debug console=hvc0' \
