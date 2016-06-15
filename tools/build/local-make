@@ -63,16 +63,17 @@ version=`make -s $MAKEOPTS kernelrelease | grep -R '[0-9]\..*' -`
 
 # Actually build the kernel
 echo "Building Linux $version..."
-$TIMECMD make -s $MAKEOPTS tar-pkg
+if [ ! -z "$BUILDONLY" ]; then
+	make -s $MAKEOPTS
+	exit $?
+else
+	$TIMECMD make -s $MAKEOPTS tar-pkg
+fi
 
 maybe_backup_config
 
 if [ ! -e $OUTPUTREDIR/linux-${version}-x86.tar ]; then
 	echo "Holy probably syntatical but possibly linker-related build error batman!"
-	exit
-fi
-
-if [ ! -z "$BUILDONLY" ]; then
 	exit
 fi
 
