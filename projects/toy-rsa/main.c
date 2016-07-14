@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv)
 {
-	long testcount = TESTCOUNT;
+	long testcount = LONG_MAX;
 	int bits = 256;
 
 	if (argc > 1)

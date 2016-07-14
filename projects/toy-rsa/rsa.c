@@ -60,6 +60,10 @@ static struct bfi *mod_inv(struct bfi *e, struct bfi *tot)
 	struct bfi *r = NULL;
 	struct bfi *tmp = NULL;
 
+	bfi_extend(m, bfi_len(tot));
+	bfi_extend(x_last, bfi_len(tot));
+	bfi_extend(x, bfi_len(tot));
+
 	bfi_raw(x)[0] = 1;
 	while (!bfi_is_zero(a)) {
 		q = bfi_divide(b, a, &r);
@@ -107,8 +111,10 @@ static int bfi_is_prime(struct bfi *n)
 	do {
 		putchar('+');
 
+		bfi_extend(rnd, bfi_len(n));
 		rng_fill_mem(bfi_raw(rnd), bfi_len(rnd) / CHAR_BIT);
 		res = bfi_mod_exp(rnd, nminusone, n);
+
 		ret = !!bfi_is_one(res);
 		bfi_free(res);
 	} while(i-- && ret);

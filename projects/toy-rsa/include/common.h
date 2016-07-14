@@ -2,10 +2,20 @@
 
 #include <limits.h>
 
-#define fatal(args...) \
-do { \
-	printf(args); \
-	abort(); \
+#define S(x) #x
+#define S_(x) S(x)
+#define S__LINE__ S_(__LINE__)
+
+#define fatal(...)							\
+do {									\
+	fprintf(stderr, __FILE__ ":" S__LINE__ ": FATAL: " __VA_ARGS__);\
+	abort();							\
+} while (0)
+
+#define fatal_on(cond, ...)						\
+do {									\
+	if (__builtin_expect(cond, 0))					\
+		fatal(__VA_ARGS__);					\
 } while (0)
 
 #define min(x, y) ({							\
@@ -20,13 +30,10 @@ do { \
 	(void) (&_max1 == &_max2);					\
 	_max1 > _max2 ? _max1 : _max2; })
 
-#define xchg(x, y) do {	\
-	typeof(x) _tmp;	\
-	_tmp = x;	\
-	x = y;		\
-	y = _tmp;	\
+#define xchg(x, y)							\
+do {									\
+	typeof(x) _tmp;							\
+	_tmp = x;							\
+	x = y;								\
+	y = _tmp;							\
 } while (0)
-
-#ifndef TESTCOUNT
-#define TESTCOUNT LONG_MAX
-#endif

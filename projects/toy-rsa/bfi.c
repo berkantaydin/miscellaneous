@@ -44,7 +44,7 @@ struct bfi {
 	int alloclen;
 	int len;
 
-	unsigned long *n;
+	unsigned long n[];
 };
 
 static unsigned long bfi_safe(struct bfi *b, int index)
@@ -65,17 +65,19 @@ static struct bfi *__bfi_alloc(int len)
 {
 	struct bfi *ret;
 
-	ret = calloc(1, sizeof(*ret));
-	if (!ret)
-		abort();
+	fatal_on(!len, "Attempt to allocate zero-length BFI\n");
 
-	ret->n = calloc(len, sizeof(unsigned long));
-	if (!ret->n)
-		abort();
+	/*
+	 * FIXME: This is necessary because modulo/divide rely on expanding the
+	 * divisor to match the width of the dividend. Need to fix it to support
+	 * shifted subtraction and this will go away.
+	 */
+	ret = calloc(1, sizeof(*ret) + 128 * sizeof(unsigned long));
+	fatal_on(!ret, "ENOMEM allocating BFI\n");
 
 	ret->sign = 0;
-	ret->alloclen = len;
-	ret->len = len;
+	ret->alloclen = 128;
+	ret->len = 1;
 
 	return ret;
 }
@@ -92,10 +94,6 @@ struct bfi *bfi_alloc(int bitlen)
 
 void bfi_free(struct bfi *b)
 {
-	if (!b)
-		return;
-
-	free(b->n);
 	free(b);
 }
 
@@ -105,19 +103,21 @@ static void shrink_bfi(struct bfi *b)
 		b->len--;
 }
 
+static void __bfi_dup(struct bfi *dst, struct bfi *src)
+{
+	fatal_on(dst->alloclen < src->alloclen, "__bfi_dup() can't allocate\n");
+
+	memcpy(dst, src, sizeof(*src) + src->len * sizeof(unsigned long));
+	memset(&dst->n[dst->len], 0,
+			(dst->alloclen - dst->len) * sizeof(unsigned long));
+}
+
 struct bfi *bfi_copy(struct bfi *b)
 {
 	struct bfi *ret;
 
-	ret = __bfi_alloc(b->alloclen);
-	if (!ret)
-		abort();
-
-	ret->len = b->len;
-	ret->sign = b->sign;
-	memcpy(ret->n, b->n, b->len * sizeof(unsigned long));
-	shrink_bfi(ret);
-
+	ret = __bfi_alloc(b->len);
+	__bfi_dup(ret, b);
 	return ret;
 }
 
@@ -133,26 +133,12 @@ static void __bfi_extend(struct bfi *b, int newlen)
 		return;
 	}
 
-	b->n = realloc(b->n, newlen * sizeof(unsigned long));
-	if (!b->n)
-		abort();
-
-	b->alloclen = newlen;
-	b->len = newlen;
-
-	memset(&b->n[oldlen], 0, (newlen - oldlen) * sizeof(unsigned long));
+	fatal("%p overflow: %d > %d, was %d\n", b, newlen, b->alloclen, b->len);
 }
 
 void bfi_extend(struct bfi *b, int new_bitlen)
 {
 	__bfi_extend(b, bitlen_to_words(new_bitlen));
-}
-
-static void bfi_move(struct bfi *dst, struct bfi *src)
-{
-	free(dst->n);
-	memcpy(dst, src, sizeof(*dst));
-	free(src);
 }
 
 void bfi_print(struct bfi *b)
@@ -248,7 +234,7 @@ void bfi_multiple_shl(struct bfi *b, int n)
 	unsigned long mask, prv, nxt, adj;
 
 	words = n / LONG_BIT;
-	__bfi_extend(b, b->len + words + 1);
+	__bfi_extend(b, b->len + words);
 
 	if (words) {
 		for (i = b->len - 1; i - words >= 0; i--)
@@ -262,6 +248,8 @@ void bfi_multiple_shl(struct bfi *b, int n)
 
 	if (!n)
 		return;
+
+	__bfi_extend(b, b->len + words + 1);
 
 	/*
 	 * Mask for the top N bits, and adjustment to shift the top N bits to
@@ -382,6 +370,9 @@ static void __bfi_sub(struct bfi *a, struct bfi *b)
 {
 	int i;
 
+	shrink_bfi(b);
+	fatal_on(b->len > a->len, "Bad subtraction: %d > %d\n", b->len, a->len);
+
 	for (i = 0; i < b->len; i++)
 		subtract_chained_borrow(&a->n[i], b->n[i]);
 
@@ -389,17 +380,23 @@ static void __bfi_sub(struct bfi *a, struct bfi *b)
 		a->sign = 0;
 }
 
-void bfi_add(struct bfi *a, struct bfi *b)
+static void __bfi_inv_sub(struct bfi *a, struct bfi *b)
 {
 	struct bfi *copy;
 
+	copy = bfi_copy(b);
+	__bfi_sub(copy, a);
+	__bfi_dup(a, copy);
+	free(copy);
+
+	a->sign ^= 1;
+}
+
+void bfi_add(struct bfi *a, struct bfi *b)
+{
 	if (a->sign ^ b->sign) {
 		if (bfi_cmp(a, b) < 0) {
-			copy = bfi_copy(b);
-			__bfi_sub(copy, a);
-
-			bfi_move(a, copy);
-			a->sign ^= 1;
+			__bfi_inv_sub(a, b);
 			return;
 		}
 
@@ -412,19 +409,13 @@ void bfi_add(struct bfi *a, struct bfi *b)
 
 void bfi_sub(struct bfi *a, struct bfi *b)
 {
-	struct bfi *copy;
-
 	if (a->sign ^ b->sign) {
 		__bfi_add(a, b);
 		return;
 	}
 
 	if (bfi_cmp(a, b) < 0) {
-		copy = bfi_copy(b);
-		__bfi_sub(copy, a);
-
-		bfi_move(a, copy);
-		a->sign ^= 1;
+		__bfi_inv_sub(a, b);
 		return;
 	}
 
@@ -481,9 +472,11 @@ struct bfi *bfi_multiply(struct bfi *a, struct bfi *b)
 	shrink_bfi(b);
 
 	res = __bfi_alloc(a->len + b->len);
+	__bfi_extend(res, a->len + b->len);
+
 	for (i = 0; i < a->len; i++) {
 		for (j = 0; j < b->len; j++) {
-			tmp = multiply(bfi_safe(a, i), bfi_safe(b, j));
+			tmp = multiply(a->n[i], b->n[j]);
 			add_chained_carry(&res->n[i + j + 1], tmp.hi);
 			add_chained_carry(&res->n[i + j], tmp.lo);
 		}
@@ -529,10 +522,11 @@ struct bfi *bfi_divide(struct bfi *a, struct bfi *b, struct bfi **rem)
 	int bits;
 
 	bits = bfi_most_sig_bit(a) - bfi_most_sig_bit(b);
-	if (bits < 0)
-		fatal("Divisor cannot be larger than dividend\n");
+	fatal_on(bits < 0, "Divisor cannot be larger than dividend\n");
 
 	quotient = __bfi_alloc(a->len);
+	__bfi_extend(quotient, a->len);
+
 	dividend = bfi_copy(a);
 	divisor = bfi_copy(b);
 

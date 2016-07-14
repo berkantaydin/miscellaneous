@@ -26,10 +26,10 @@
 #include "include/rng.h"
 
 #define AES_BLOCKSIZE 16
-#define ULONGS_PER_AES_BLOCK ((AES_BLOCKSIZE / sizeof(unsigned long)))
+#define BLOCK_LONGS ((AES_BLOCKSIZE / sizeof(unsigned long)))
 
 static struct aes_ctx *rng_key;
-static unsigned long ctr[ULONGS_PER_AES_BLOCK];
+static unsigned long ctr[BLOCK_LONGS];
 
 void init_rng(void)
 {
@@ -67,26 +67,33 @@ void free_rng(void)
 	free(rng_key);
 }
 
-static void put_next_counter(void *mem)
+static void bump_counter(void)
 {
 	unsigned i;
 
-	memcpy(mem, ctr, 16);
-	for (i = 0; i < ULONGS_PER_AES_BLOCK; i++)
-		if (++ctr[i])
-			break;
+	for (i = 0; i < BLOCK_LONGS && !++ctr[i]; i++);
+}
+
+static void fill_one_block(void *mem)
+{
+	memcpy(mem, ctr, AES_BLOCKSIZE);
+	aes128_encrypt(rng_key, mem);
+	bump_counter();
 }
 
 void rng_fill_mem(void *mem, int len)
 {
 	char *cmem = mem;
-	int i;
+	char buf[AES_BLOCKSIZE];
+	int i, full_blocks;
 
-	if (len % AES_BLOCKSIZE)
-		fatal("Length %d isn't multiple of %d\n", len, AES_BLOCKSIZE);
+	full_blocks = len / AES_BLOCKSIZE;
+	for (i = 0; i < full_blocks; i++)
+		fill_one_block(cmem + i * AES_BLOCKSIZE);
 
-	for (i = 0; i < len; i += 16) {
-		put_next_counter(cmem + i);
-		aes128_encrypt(rng_key, cmem + i);
-	}
+	if (i * AES_BLOCKSIZE == len)
+		return;
+
+	fill_one_block(buf);
+	memcpy(cmem + i * AES_BLOCKSIZE, buf, len % AES_BLOCKSIZE);
 }
