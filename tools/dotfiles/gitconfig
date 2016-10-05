@@ -22,10 +22,11 @@
 [push]
 	default = "simple"
 [alias]
-	amend = "commit --amend"
-	amendr = "commit --amend --reset-author"
-	ca = "commit --amend -a"
-	car = "commit --amend -a --reset-author"
+	a = "commit --amend"
+	ca = "commit -a"
+	caa = "commit --amend -a"
+	caar = "commit --amend -a --reset-author"
+	fph = "format-patch -s HEAD~1..HEAD --stdout"
 	d = "diff"
 	c = "checkout"
 	g = "grep"
