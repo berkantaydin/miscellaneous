@@ -24,12 +24,13 @@ maybe_backup_config() {
 	fi
 }
 
-while getopts bcmo: i; do
+while getopts bcmo:C: i; do
 	case $i in
 		b) BUILDONLY=1 ;;
 		m) DOCONFIG=1 ;;
 		c) DOCLEAN=1 ;;
 		o) OUTPUTREDIR="$OPTARG"; MAKEOPTS="${MAKEOPTS} O=$OPTARG" ;;
+		C) MAKEOPTS="${MAKEOPTS} CC=${OPTARG} HOSTCC=${OPTARG}" ;;
 	esac
 done
 
