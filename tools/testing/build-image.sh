@@ -58,7 +58,7 @@ sudo bash -c 'echo "/dev/vdb none swap sw 0 0" >> mnt/etc/fstab'
 
 echo "Enabling virtioconsole"
 sudo sed -ri 's/^c/#c/g' mnt/etc/inittab
-sudo bash -c 'echo "s0:12345:respawn:/sbin/agetty -L 9600 hvc1 vt100 -a calvinow" >> mnt/etc/inittab'
+sudo bash -c 'echo "s0:12345:respawn:/sbin/agetty -L 115200 ttyS1 vt100 -a calvinow" >> mnt/etc/inittab'
 
 echo "Setting timezones"
 sudo bash -c 'echo "US/Pacific" > mnt/etc/timezone'
